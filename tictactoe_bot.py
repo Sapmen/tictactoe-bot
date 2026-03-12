@@ -29,7 +29,6 @@ def load_data():
         if os.path.exists(NICKNAMES_FILE):
             with open(NICKNAMES_FILE, 'r', encoding='utf-8') as f:
                 user_nicknames = json.load(f)
-                # Конвертируем ключи обратно в int
                 user_nicknames = {int(k): v for k, v in user_nicknames.items()}
         else:
             user_nicknames = {}
@@ -40,7 +39,6 @@ def load_data():
         if os.path.exists(STATS_FILE):
             with open(STATS_FILE, 'r', encoding='utf-8') as f:
                 user_stats = json.load(f)
-                # Конвертируем ключи обратно в int
                 user_stats = {int(k): v for k, v in user_stats.items()}
         else:
             user_stats = {}
@@ -51,7 +49,6 @@ def load_data():
 def save_data():
     try:
         with open(NICKNAMES_FILE, 'w', encoding='utf-8') as f:
-            # Конвертируем ключи в строки для JSON
             json.dump({str(k): v for k, v in user_nicknames.items()}, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error(f"Ошибка сохранения ников: {e}")
@@ -401,10 +398,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         player_nick = get_nickname(user_id)
         
         if total_games > 1:
-            header = f"🤖 {player_nick} (❌) vs Бот (⭕)\n{game.get_score_display()}\n"
+            header = f"👤 {player_nick} (❌) vs 🤖 Бот (⭕)\n{game.get_score_display()}\n"
             match_info = f"⚔️ Матч 1/{total_games}\n\n"
         else:
-            header = f"🤖 {player_nick} (❌) vs Бот (⭕)\n"
+            header = f"👤 {player_nick} (❌) vs 🤖 Бот (⭕)\n"
             match_info = ""
         
         text = match_info + header + game.get_board_display() + "\nВаш ход!"
@@ -624,32 +621,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Проверяем результат
         if status == "win":
-            user_stats[user_id]['wins'] += 1
-            user_stats[user_id]['total'] += 1
+            # Определяем победителя
+            winner_id = game.winner
+            loser_id = game.player2_id if winner_id == game.player1_id else game.player1_id
+            
+            # Обновляем статистику
+            if str(winner_id) in user_stats:
+                user_stats[str(winner_id)]['wins'] += 1
+                user_stats[str(winner_id)]['total'] += 1
+            if str(loser_id) in user_stats:
+                user_stats[str(loser_id)]['losses'] += 1
+                user_stats[str(loser_id)]['total'] += 1
             save_data()
             
-            winner_nick = get_nickname(user_id)
+            winner_nick = get_nickname(winner_id)
             
-            # Если мультиплеер, обновляем статистику соперника
-            if game.mode == 'multiplayer' and game.player2_id:
-                opponent_id = str(game.player2_id) if user_id == str(game.player1_id) else str(game.player1_id)
-                if opponent_id in user_stats:
-                    user_stats[opponent_id]['losses'] += 1
-                    user_stats[opponent_id]['total'] += 1
-                    save_data()
-                
-                # Обновляем счет в лобби
+            # Если мультиплеер, обновляем счет в лобби
+            if game.mode == 'multiplayer':
                 for lobby in lobbies.values():
                     if lobby['game_id'] == game_id:
-                        if user_id == str(game.player1_id):
-                            lobby['score1'] = game.player1_score
-                            lobby['score2'] = game.player2_score
-                        else:
-                            lobby['score1'] = game.player2_score
-                            lobby['score2'] = game.player1_score
+                        lobby['score1'] = game.player1_score
+                        lobby['score2'] = game.player2_score
                         break
             
-            # Формируем текст с победителем и счетом
+            # Формируем текст с победителем
             if game.mode == 'bot' and game.total_games > 1 and game.current_game < game.total_games:
                 text = f"✅ Матч {game.current_game} завершен!\n\n" + header + game.get_board_display()
             else:
@@ -665,19 +660,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await check_next_game(context, game_id)
             
         elif status == "draw":
-            user_stats[user_id]['draws'] += 1
-            user_stats[user_id]['total'] += 1
+            # Обновляем статистику
+            if str(game.player1_id) in user_stats:
+                user_stats[str(game.player1_id)]['draws'] += 1
+                user_stats[str(game.player1_id)]['total'] += 1
+            if game.player2_id and str(game.player2_id) in user_stats:
+                user_stats[str(game.player2_id)]['draws'] += 1
+                user_stats[str(game.player2_id)]['total'] += 1
             save_data()
             
-            # Если мультиплеер, обновляем статистику соперника
-            if game.mode == 'multiplayer' and game.player2_id:
-                opponent_id = str(game.player2_id) if user_id == str(game.player1_id) else str(game.player1_id)
-                if opponent_id in user_stats:
-                    user_stats[opponent_id]['draws'] += 1
-                    user_stats[opponent_id]['total'] += 1
-                    save_data()
-            
-            # Формируем текст с ничьей и счетом
+            # Формируем текст с ничьей
             if game.mode == 'bot' and game.total_games > 1 and game.current_game < game.total_games:
                 text = f"✅ Матч {game.current_game} завершен!\n\n" + header + game.get_board_display()
             else:
@@ -708,11 +700,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     result, status = game.make_move(bot_move, 'bot')
                     
                     if status == "win":
-                        user_stats[user_id]['losses'] += 1
-                        user_stats[user_id]['total'] += 1
+                        # Определяем победителя (бот)
+                        winner_id = 'bot'
+                        loser_id = game.player1_id
+                        
+                        if str(loser_id) in user_stats:
+                            user_stats[str(loser_id)]['losses'] += 1
+                            user_stats[str(loser_id)]['total'] += 1
                         save_data()
                         
-                        if game.mode == 'bot' and game.total_games > 1 and game.current_game < game.total_games:
+                        if game.total_games > 1 and game.current_game < game.total_games:
                             text = f"✅ Матч {game.current_game} завершен!\n\n" + header + game.get_board_display()
                         else:
                             text = f"😢 Бот победил!\n\n" + header + game.get_board_display()
@@ -721,11 +718,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await check_next_game(context, game_id)
                     
                     elif status == "draw":
-                        user_stats[user_id]['draws'] += 1
-                        user_stats[user_id]['total'] += 1
+                        if str(game.player1_id) in user_stats:
+                            user_stats[str(game.player1_id)]['draws'] += 1
+                            user_stats[str(game.player1_id)]['total'] += 1
                         save_data()
                         
-                        if game.mode == 'bot' and game.total_games > 1 and game.current_game < game.total_games:
+                        if game.total_games > 1 and game.current_game < game.total_games:
                             text = f"✅ Матч {game.current_game} завершен!\n\n" + header + game.get_board_display()
                         else:
                             text = f"🤝 Ничья!\n\n" + header + game.get_board_display()
@@ -874,15 +872,24 @@ async def check_next_game(context, game_id):
                         logger.error(f"Ошибка обновления у игрока 2: {e}")
                 
                 else:
-                    # Серия завершена
+                    # Серия завершена - показываем финальный счет
                     creator_nick = get_nickname(lobby['creator'])
                     player2_nick = get_nickname(lobby['player2'])
+                    
+                    # Определяем победителя серии
+                    if lobby['score1'] > lobby['score2']:
+                        winner_text = f"🏆 Победитель серии: {creator_nick}"
+                    elif lobby['score2'] > lobby['score1']:
+                        winner_text = f"🏆 Победитель серии: {player2_nick}"
+                    else:
+                        winner_text = f"🤝 Ничья в серии!"
                     
                     final_text = (
                         f"🏁 Серия игр завершена!\n\n"
                         f"Финальный счет:\n"
                         f"{creator_nick}: {lobby['score1']}\n"
                         f"{player2_nick}: {lobby['score2']}\n\n"
+                        f"{winner_text}\n\n"
                         f"Чтобы сыграть снова, создайте новую комнату."
                     )
                     
