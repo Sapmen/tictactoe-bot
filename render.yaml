@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: tictactoe-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python tictactoe_bot.py
