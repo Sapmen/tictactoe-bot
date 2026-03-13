@@ -93,9 +93,10 @@ temp_set_nickname = {}
 temp_bot_series = {}
 temp_bot_chat = {}
 temp_lobby_chat = {}
+temp_lobby_continue = {}  # Для бесконечных серий
 
 class TicTacToe:
-    def __init__(self, game_id, player1_id, player2_id=None, mode='bot', difficulty='easy', total_games=1, chat_enabled=False):
+    def __init__(self, game_id, player1_id, player2_id=None, mode='bot', difficulty='easy', total_games=1, chat_enabled=False, lobby_id=None):
         self.game_id = game_id
         self.board = ['⬜'] * 9
         self.player1_id = player1_id
@@ -116,6 +117,7 @@ class TicTacToe:
         self.current_game = 1
         self.chat_enabled = chat_enabled
         self.chat_history = []
+        self.lobby_id = lobby_id
         
     def make_move(self, position, player_id):
         if self.game_over:
@@ -214,20 +216,39 @@ class TicTacToe:
         return chat_text
 
 class NeuralNetworkBot:
-    def __init__(self):
-        # Простые ответы для демонстрации
-        self.responses = [
-            "Интересный ход!",
-            "Хорошая стратегия!",
-            "Посмотрим, что будет дальше...",
-            "Ты хорошо играешь!",
-            "Я ожидал этого хода.",
-            "Неожиданно!",
-            "Отличная игра!",
-            "Хм... интересно.",
-            "Ты меня удивляешь!",
-            "Так держать!"
-        ]
+    def __init__(self, difficulty='impossible'):
+        self.difficulty = difficulty
+        # Ответы для разных уровней сложности
+        self.responses = {
+            'easy': [
+                "Я только учусь!",
+                "Интересный ход!",
+                "Ого, так неожиданно!",
+                "Я пока не очень умный...",
+                "Ты явно опытнее меня!"
+            ],
+            'medium': [
+                "Неплохой ход!",
+                "Я начинаю понимать игру...",
+                "Интересная стратегия!",
+                "Посмотрим, что будет дальше!",
+                "Ты хорошо играешь!"
+            ],
+            'hard': [
+                "Отличный ход!",
+                "Я ожидал этого...",
+                "Хорошая стратегия!",
+                "Так держать!",
+                "Это было предсказуемо."
+            ],
+            'impossible': [
+                "Я просчитал этот ход!",
+                "Ты играешь на удивление хорошо!",
+                "Интересно, что будет дальше...",
+                "Я анализирую твою стратегию!",
+                "Нейросеть довольна твоей игрой!"
+            ]
+        }
         
     def get_move(self, game):
         available = [i for i, cell in enumerate(game.board) if cell == '⬜']
@@ -270,28 +291,40 @@ class NeuralNetworkBot:
         
         # Ответы на приветствия
         if any(word in message_lower for word in ['привет', 'здравствуй', 'хай', 'hello']):
-            return "Привет! Как твоя игра?"
+            return f"Привет! Как твоя игра? (Уровень: {self.difficulty})"
         
         # Ответы на вопросы о игре
         if any(word in message_lower for word in ['как дела', 'как ты']):
-            return "У меня всё отлично! А у тебя как успехи в игре?"
+            responses = {
+                'easy': "У меня всё отлично! Я только учусь играть!",
+                'medium': "Хорошо! Начинаю понимать стратегию!",
+                'hard': "Прекрасно! Я анализирую каждый ход!",
+                'impossible': "Отлично! Нейросеть в полной боевой готовности!"
+            }
+            return responses.get(self.difficulty, "Всё хорошо!")
         
         # Ответы на комплименты
-        if any(word in message_lower for word in ['молодец', 'умница', 'хорошо']):
-            return "Спасибо! Ты тоже отлично играешь!"
+        if any(word in message_lower for word in ['молодец', 'умница', 'хорошо', 'круто']):
+            responses = {
+                'easy': "Спасибо! Ты тоже молодец!",
+                'medium': "Благодарю! Твоя игра впечатляет!",
+                'hard': "Спасибо! Я стараюсь!",
+                'impossible': "Нейросеть ценит твои слова!"
+            }
+            return responses.get(self.difficulty, "Спасибо!")
         
         # Ответы на вопросы о ходе
-        if any(word in message_lower for word in ['куда ходить', 'посоветуй']):
+        if any(word in message_lower for word in ['куда ходить', 'посоветуй', 'подскажи']):
             return "Смотри на центр и углы, это ключевые позиции!"
         
-        # Если ничего не подошло, случайный ответ
-        return random.choice(self.responses)
+        # Если ничего не подошло, случайный ответ для текущей сложности
+        return random.choice(self.responses.get(self.difficulty, self.responses['medium']))
 
 class BotPlayer:
     def __init__(self, difficulty='easy', chat_enabled=False):
         self.difficulty = difficulty
         self.chat_enabled = chat_enabled
-        self.neural = NeuralNetworkBot() if difficulty == 'impossible' or chat_enabled else None
+        self.neural = NeuralNetworkBot(difficulty) if chat_enabled else None
         
     def get_move(self, game):
         available = [i for i, cell in enumerate(game.board) if cell == '⬜']
@@ -311,7 +344,9 @@ class BotPlayer:
             return self.get_smart_move(game, available)
         
         else:  # impossible
-            return self.neural.get_move(game)
+            if self.neural:
+                return self.neural.get_move(game)
+            return self.get_smart_move(game, available)
     
     def get_smart_move(self, game, available):
         # Победный ход
@@ -452,7 +487,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("◀️ Назад", callback_data='menu_bot')]
         ]
         await query.edit_message_text(
-            "🤖 Выберите режим общения с ботом:",
+            f"🤖 Уровень: {difficulty}\nВыберите режим общения с ботом:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     
@@ -463,6 +498,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Сохраняем выбор чата
         temp_bot_chat[user_id] = chat_enabled
+        temp_bot_series[user_id]['chat'] = chat_enabled
         
         keyboard = [
             [InlineKeyboardButton("1 игра", callback_data=f'bot_series_1_{difficulty}')],
@@ -500,10 +536,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         player_nick = get_nickname(user_id)
         
         if total_games > 1:
-            header = f"👤 {player_nick} (❌) vs 🤖 Бот (⭕)\n{game.get_score_display()}\n"
+            header = f"👤 {player_nick} (❌) vs 🤖 Бот ({difficulty_names[difficulty]})\n{game.get_score_display()}\n"
             match_info = f"⚔️ Матч 1/{total_games}\n\n"
         else:
-            header = f"👤 {player_nick} (❌) vs 🤖 Бот (⭕)\n"
+            header = f"👤 {player_nick} (❌) vs 🤖 Бот ({difficulty_names[difficulty]})\n"
             match_info = ""
         
         chat_status = "💬 Чат включен" if chat_enabled else "🎮 Чат выключен"
@@ -536,6 +572,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("3 игры", callback_data='create_3')],
             [InlineKeyboardButton("5 игр", callback_data='create_5')],
             [InlineKeyboardButton("10 игр", callback_data='create_10')],
+            [InlineKeyboardButton("∞ Бесконечно", callback_data='create_infinite')],
             [InlineKeyboardButton("◀️ Назад", callback_data='menu_friend')]
         ]
         await query.edit_message_text(
@@ -545,7 +582,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif data.startswith('create_'):
-        total_games = int(data.split('_')[1])
+        if data == 'create_infinite':
+            total_games = 999999  # Огромное число для бесконечности
+        else:
+            total_games = int(data.split('_')[1])
+        
         temp_lobby_name[user_id] = total_games
         
         # Добавляем выбор чата
@@ -555,7 +596,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("◀️ Назад", callback_data='menu_friend')]
         ]
         await query.edit_message_text(
-            f"📝 Выбрано игр: {total_games}\n\n"
+            f"📝 Выбрано игр: {'∞' if total_games == 999999 else total_games}\n\n"
             f"Включить чат между игроками?",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
@@ -566,9 +607,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total_games = int(parts[3])
         
         temp_lobby_chat[user_id] = chat_enabled
+        temp_lobby_name[user_id] = total_games  # Сохраняем
         
         await query.edit_message_text(
-            f"📝 Выбрано игр: {total_games}\n\n"
+            f"📝 Выбрано игр: {'∞' if total_games == 999999 else total_games}\n\n"
             f"Введите название комнаты\n"
             f"(или 'нет' для случайного названия):"
         )
@@ -590,10 +632,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if lobby['player2'] is None:
                 lock = "🔒" if lobby['password'] else "🔓"
                 chat_status = "💬" if lobby['chat_enabled'] else "🎮"
+                games_count = "∞" if lobby['total'] == 999999 else str(lobby['total'])
                 creator_nick = get_nickname(lobby['creator'])
                 text += f"{lock}{chat_status} {lobby['name']}\n"
                 text += f"   Создатель: {creator_nick}\n"
-                text += f"   Игр: {lobby['current']}/{lobby['total']}\n"
+                text += f"   Игр: {lobby['current']}/{games_count}\n"
                 text += f"   Счет: {lobby['score1']}:{lobby['score2']}\n"
                 text += f"   ID: {lobby_id}\n\n"
                 
@@ -635,6 +678,90 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             await join_lobby(user_id, lobby_id, query, context)
+    
+    # Продолжить серию (бесконечные игры)
+    elif data.startswith('continue_'):
+        lobby_id = data.replace('continue_', '')
+        
+        if lobby_id not in lobbies:
+            await query.edit_message_text(
+                "❌ Комната не найдена",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("◀️ В меню", callback_data='menu_main')
+                ]])
+            )
+            return
+        
+        lobby = lobbies[lobby_id]
+        
+        # Сбрасываем счет, но сохраняем комнату
+        lobby['score1'] = 0
+        lobby['score2'] = 0
+        lobby['current'] = 1
+        
+        # Создаем новую игру
+        game_id = str(uuid.uuid4())[:8]
+        game = TicTacToe(
+            game_id,
+            lobby['creator'],
+            lobby['player2'],
+            'multiplayer',
+            total_games=lobby['total'],
+            chat_enabled=lobby['chat_enabled'],
+            lobby_id=lobby_id
+        )
+        
+        games[game_id] = game
+        player_game[lobby['creator']] = game_id
+        player_game[lobby['player2']] = game_id
+        lobby['game_id'] = game_id
+        
+        # Получаем ники
+        creator_nick = get_nickname(lobby['creator'])
+        player2_nick = get_nickname(lobby['player2'])
+        
+        games_count = "∞" if lobby['total'] == 999999 else str(lobby['total'])
+        score_display = game.get_score_display()
+        header = f"👥 {creator_nick} (❌) vs {player2_nick} (⭕)\n{score_display}\n"
+        match_info = f"⚔️ Матч 1/{games_count}\n\n"
+        turn_text = f"Ход игрока {creator_nick} (❌)"
+        chat_status = "💬 Чат есть" if game.chat_enabled else ""
+        
+        text = match_info + header + game.get_board_display() + f"\n{chat_status}\n{turn_text}"
+        
+        # Обновляем сообщения у обоих игроков
+        try:
+            await context.bot.edit_message_text(
+                chat_id=game.player1_chat_id,
+                message_id=game.player1_message_id,
+                text=text,
+                reply_markup=create_game_keyboard(game_id, lobby['creator'], game)
+            )
+        except:
+            # Если не получилось обновить, отправляем новое
+            msg1 = await context.bot.send_message(
+                lobby['creator'],
+                text,
+                reply_markup=create_game_keyboard(game_id, lobby['creator'], game)
+            )
+            game.player1_message_id = msg1.message_id
+            game.player1_chat_id = msg1.chat_id
+        
+        try:
+            await context.bot.edit_message_text(
+                chat_id=game.player2_chat_id,
+                message_id=game.player2_message_id,
+                text=text,
+                reply_markup=create_game_keyboard(game_id, lobby['creator'], game)
+            )
+        except:
+            msg2 = await context.bot.send_message(
+                lobby['player2'],
+                text,
+                reply_markup=create_game_keyboard(game_id, lobby['creator'], game)
+            )
+            game.player2_message_id = msg2.message_id
+            game.player2_chat_id = msg2.chat_id
     
     # Чат в мультиплеере
     elif data.startswith('chat_'):
@@ -686,12 +813,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         player1_nick = get_nickname(game.player1_id)
         player2_nick = get_nickname(game.player2_id) if game.player2_id else "Бот"
         
+        games_count = "∞" if game.total_games == 999999 else str(game.total_games)
+        
         if game.mode == 'multiplayer':
             header = f"👥 {player1_nick} (❌) vs {player2_nick} (⭕)\n{game.get_score_display()}\n"
             if game.total_games > 1:
-                header = f"⚔️ Матч {game.current_game}/{game.total_games}\n" + header
+                header = f"⚔️ Матч {game.current_game}/{games_count}\n" + header
         else:
-            header = f"👤 {player1_nick} (❌) vs 🤖 {player2_nick} (⭕)\n"
+            difficulty_names = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴', 'impossible': '🤖'}
+            diff_icon = difficulty_names.get(game.difficulty, '🤖')
+            header = f"👤 {player1_nick} (❌) vs {diff_icon} {player2_nick} ({game.difficulty})\n"
         
         if game.current_turn == user_id:
             turn_text = "Ваш ход!"
@@ -735,13 +866,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Установите свой ник в меню\n"
             "• Ники сохраняются и отображаются в игре\n\n"
             "🤖 Игра с ботом:\n"
-            "• Выберите уровень сложности\n"
-            "• Можно включить чат с нейросетью\n"
+            "• Выберите уровень сложности (Easy, Medium, Hard, Нейросеть)\n"
+            "• Можно включить чат с нейросетью для любого уровня\n"
+            "• Бот отвечает в зависимости от сложности\n"
             "• Можно играть серии до 10 игр\n\n"
             "👥 Мультиплеер:\n"
             "• Создайте комнату с чатом или без\n"
-            "• Отправьте ID другу\n"
-            "• Общайтесь во время игры\n\n"
+            "• Можно выбрать количество игр или ∞ бесконечно\n"
+            "• После завершения серии можно начать новую с 0\n"
+            "• Отправьте ID другу\n\n"
             "📝 Команды:\n"
             "/start - главное меню\n"
             "/join [ID] - подключиться"
@@ -802,13 +935,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Формируем заголовок со счетом
         score_display = game.get_score_display()
+        games_count = "∞" if game.total_games == 999999 else str(game.total_games)
         
         if game.mode == 'multiplayer' or (game.mode == 'bot' and game.total_games > 1):
-            header = f"👤 {player1_nick} (❌) vs {'🤖' if game.mode == 'bot' else '👤'} {player2_nick} (⭕)\n{score_display}\n"
+            if game.mode == 'multiplayer':
+                header = f"👥 {player1_nick} (❌) vs {player2_nick} (⭕)\n{score_display}\n"
+            else:
+                difficulty_names = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴', 'impossible': '🤖'}
+                diff_icon = difficulty_names.get(game.difficulty, '🤖')
+                header = f"👤 {player1_nick} (❌) vs {diff_icon} {player2_nick} ({game.difficulty})\n{score_display}\n"
+            
             if game.total_games > 1:
-                header = f"⚔️ Матч {game.current_game}/{game.total_games}\n" + header
+                header = f"⚔️ Матч {game.current_game}/{games_count}\n" + header
         else:
-            header = f"👤 {player1_nick} (❌) vs 🤖 {player2_nick} (⭕)\n"
+            difficulty_names = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴', 'impossible': '🤖'}
+            diff_icon = difficulty_names.get(game.difficulty, '🤖')
+            header = f"👤 {player1_nick} (❌) vs {diff_icon} {player2_nick} ({game.difficulty})\n"
         
         chat_status = "💬 Чат есть" if game.chat_enabled else ""
         
@@ -965,12 +1107,15 @@ async def check_next_game(context, game_id):
             # Получаем ник игрока
             player_nick = get_nickname(game.player1_id)
             
+            difficulty_names = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴', 'impossible': '🤖'}
+            diff_icon = difficulty_names.get(game.difficulty, '🤖')
+            
             # Формируем заголовок со счетом
             score_display = game.get_score_display()
-            header = f"👤 {player_nick} (❌) vs 🤖 Бот (⭕)\n{score_display}\n"
+            header = f"👤 {player_nick} (❌) vs {diff_icon} Бот ({game.difficulty})\n{score_display}\n"
             match_info = f"⚔️ Матч {game.current_game}/{game.total_games}\n\n"
             
-            chat_status = "💬 Чат включен" if game.chat_enabled else "🎮 Чат выключен"
+            chat_status = "💬 Чат есть" if game.chat_enabled else ""
             text = match_info + header + game.get_board_display() + f"\n{chat_status}\nВаш ход!"
             
             # Обновляем сообщение
@@ -987,11 +1132,14 @@ async def check_next_game(context, game_id):
         else:
             # Серия завершена
             player_nick = get_nickname(game.player1_id)
+            difficulty_names = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴', 'impossible': '🤖'}
+            diff_icon = difficulty_names.get(game.difficulty, '🤖')
+            
             final_text = (
                 f"🏁 Серия игр завершена!\n\n"
                 f"Финальный счет:\n"
                 f"{player_nick}: {game.player1_score}\n"
-                f"Бот: {game.player2_score}\n\n"
+                f"Бот ({diff_icon} {game.difficulty}): {game.player2_score}\n\n"
                 f"Чтобы сыграть снова, вернитесь в меню."
             )
             
@@ -1018,6 +1166,8 @@ async def check_next_game(context, game_id):
         # Ищем лобби с этой игрой
         for lobby_id, lobby in lobbies.items():
             if lobby['game_id'] == game_id:
+                games_count = "∞" if lobby['total'] == 999999 else str(lobby['total'])
+                
                 if lobby['current'] < lobby['total']:
                     # Начинаем следующую игру
                     lobby['current'] += 1
@@ -1040,7 +1190,7 @@ async def check_next_game(context, game_id):
                     
                     score_display = game.get_score_display()
                     header = f"👥 {creator_nick} (❌) vs {player2_nick} (⭕)\n{score_display}\n"
-                    match_info = f"⚔️ Матч {lobby['current']}/{lobby['total']}\n\n"
+                    match_info = f"⚔️ Матч {lobby['current']}/{games_count}\n\n"
                     
                     if game.current_turn == lobby['creator']:
                         turn_text = f"Ход игрока {creator_nick} (❌)"
@@ -1072,7 +1222,7 @@ async def check_next_game(context, game_id):
                         logger.error(f"Ошибка обновления у игрока 2: {e}")
                 
                 else:
-                    # Серия завершена - показываем финальный счет
+                    # Серия завершена - показываем финальный счет и предлагаем продолжить
                     creator_nick = get_nickname(lobby['creator'])
                     player2_nick = get_nickname(lobby['player2'])
                     
@@ -1090,10 +1240,13 @@ async def check_next_game(context, game_id):
                         f"{creator_nick}: {lobby['score1']}\n"
                         f"{player2_nick}: {lobby['score2']}\n\n"
                         f"{winner_text}\n\n"
-                        f"Чтобы сыграть снова, создайте новую комнату."
+                        f"Хотите сыграть ещё?"
                     )
                     
-                    keyboard = [[InlineKeyboardButton("◀️ В меню", callback_data='menu_main')]]
+                    keyboard = [
+                        [InlineKeyboardButton("✅ Сыграть ещё (счет с 0)", callback_data=f'continue_{lobby_id}')],
+                        [InlineKeyboardButton("◀️ В меню", callback_data='menu_main')]
+                    ]
                     
                     # Отправляем финальный счет обоим игрокам
                     try:
@@ -1115,17 +1268,6 @@ async def check_next_game(context, game_id):
                         )
                     except Exception as e:
                         logger.error(f"Ошибка финала у игрока 2: {e}")
-                    
-                    # Удаляем лобби
-                    del lobbies[lobby_id]
-                    
-                    # Очищаем игру
-                    if game_id in games:
-                        del games[game_id]
-                    if str(lobby['creator']) in player_game:
-                        del player_game[str(lobby['creator'])]
-                    if str(lobby['player2']) in player_game:
-                        del player_game[str(lobby['player2'])]
                 
                 break
 
@@ -1141,7 +1283,8 @@ async def join_lobby(user_id, lobby_id, query=None, context=None, update=None):
         user_id,
         'multiplayer',
         total_games=lobby['total'],
-        chat_enabled=lobby['chat_enabled']
+        chat_enabled=lobby['chat_enabled'],
+        lobby_id=lobby_id
     )
     
     games[game_id] = game
@@ -1157,9 +1300,10 @@ async def join_lobby(user_id, lobby_id, query=None, context=None, update=None):
     creator_nick = get_nickname(lobby['creator'])
     joiner_nick = get_nickname(user_id)
     
+    games_count = "∞" if lobby['total'] == 999999 else str(lobby['total'])
     score_display = game.get_score_display()
     header = f"👥 {creator_nick} (❌) vs {joiner_nick} (⭕)\n{score_display}\n"
-    match_info = f"⚔️ Матч 1/{lobby['total']}\n\n"
+    match_info = f"⚔️ Матч 1/{games_count}\n\n"
     turn_text = f"Ход игрока {creator_nick} (❌)"
     chat_status = "💬 Чат есть" if game.chat_enabled else ""
     
@@ -1218,12 +1362,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             player1_nick = get_nickname(game.player1_id)
             player2_nick = get_nickname(game.player2_id) if game.player2_id else "Бот"
             
+            games_count = "∞" if game.total_games == 999999 else str(game.total_games)
+            
             if game.mode == 'multiplayer':
                 header = f"👥 {player1_nick} (❌) vs {player2_nick} (⭕)\n{game.get_score_display()}\n"
                 if game.total_games > 1:
-                    header = f"⚔️ Матч {game.current_game}/{game.total_games}\n" + header
+                    header = f"⚔️ Матч {game.current_game}/{games_count}\n" + header
             else:
-                header = f"👤 {player1_nick} (❌) vs 🤖 {player2_nick} (⭕)\n"
+                difficulty_names = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴', 'impossible': '🤖'}
+                diff_icon = difficulty_names.get(game.difficulty, '🤖')
+                header = f"👤 {player1_nick} (❌) vs {diff_icon} {player2_nick} ({game.difficulty})\n"
             
             if game.current_turn == user_id:
                 turn_text = "Ваш ход!"
@@ -1280,7 +1428,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(
             f"📝 Название: {room_name}\n"
-            f"🎮 Игр: {total_games}\n\n"
+            f"🎮 Игр: {'∞' if total_games == 999999 else total_games}\n\n"
             f"Введите пароль (или 'нет' для открытой комнаты):"
         )
     
@@ -1301,6 +1449,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lobbies[lobby_id] = {
             'name': data['name'],
             'creator': user_id,
+            'creator_name': user_nicknames.get(user_id, f"Игрок_{user_id[:4]}"),
             'password': password,
             'total': data['total'],
             'current': 1,
@@ -1316,13 +1465,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id in temp_lobby_chat:
             del temp_lobby_chat[user_id]
         
+        games_count = "∞" if data['total'] == 999999 else str(data['total'])
         chat_status = "💬 С чатом" if chat_enabled else "🎮 Без чата"
         
         await update.message.reply_text(
             f"✅ Комната создана!\n\n"
             f"🏷 Название: {data['name']}\n"
             f"🆔 ID: {lobby_id}\n"
-            f"🎮 Серия: {data['total']} игр\n"
+            f"🎮 Серия: {games_count} игр\n"
             f"{chat_status}\n"
             f"🔒 Пароль: {pass_text}\n\n"
             f"Отправьте ID другу: /join {lobby_id}\n"
@@ -1434,6 +1584,8 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     print("🤖 Запуск бота...")
+    print("✅ Чат с ботом доступен для всех уровней сложности")
+    print("✅ Бесконечные серии в мультиплеере")
     
     # Создаем приложение
     app = Application.builder().token(TOKEN).build()

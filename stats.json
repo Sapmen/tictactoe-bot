@@ -1,9 +1,9 @@
 {
   "1910403611": {
-    "wins": 0,
-    "losses": 0,
+    "wins": 1,
+    "losses": 1,
     "draws": 0,
-    "total": 0
+    "total": 2
   },
   "8409529596": {
     "wins": 0,
@@ -22,5 +22,11 @@
     "losses": 0,
     "draws": 3,
     "total": 3
+  },
+  "1282048696": {
+    "wins": 1,
+    "losses": 1,
+    "draws": 0,
+    "total": 2
   }
 }
