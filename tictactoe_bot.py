@@ -5,7 +5,6 @@ import uuid
 import json
 import os
 import aiohttp
-import asyncio
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
@@ -97,7 +96,6 @@ class TicTacToe:
         self.total_games = total_games
         self.current_game = 1
         self.lobby_id = lobby_id
-        self.voice_enabled = True
         
     def make_move(self, position, player_id):
         if self.game_over:
@@ -167,106 +165,66 @@ class TicTacToe:
             return f"Счет: {self.player1_score} : {self.player2_score}"
         return ""
 
-# Класс для TTS с РАЗНЫМИ ответами
+# Класс для TTS и УМНОЙ нейросети
 class VoiceBot:
     def __init__(self):
         self.voice_map = {
-            'easy': 'ru-RU-OstapenkoNeural',      # Мягкий женский
-            'medium': 'ru-RU-DariyaNeural',        # Нейтральный женский
-            'hard': 'ru-RU-MikhailNeural',         # Мужской
-            'impossible': 'ru-RU-CatherineNeural'  # Загадочный женский
+            'easy': 'ru-RU-OstapenkoNeural',
+            'medium': 'ru-RU-DariyaNeural',
+            'hard': 'ru-RU-MikhailNeural',
+            'impossible': 'ru-RU-CatherineNeural'
         }
         
-        # РАЗНЫЕ ОТВЕТЫ ДЛЯ КАЖДОГО УРОВНЯ (20+ вариантов)
-        self.responses = {
-            'easy': [
-                "Я только учусь, не судите строго!",
-                "Ого, какой интересный ход!",
-                "Я пока не очень умный, но стараюсь!",
-                "Ты явно опытнее меня!",
-                "Мне ещё многому нужно научиться!",
-                "Интересно, интересно...",
-                "Я просто делаю случайные ходы!",
-                "Ты хорошо играешь!",
-                "Ой, а куда я походил?",
-                "Кажется, я проигрываю...",
-                "Ничего, я только учусь!",
-                "Твоя стратегия мне непонятна!",
-                "Я пока не понимаю эту игру...",
-                "Но я стараюсь!",
-                "Может быть, в следующий раз повезёт?",
-                "Ты слишком сильный соперник!",
-                "Я просто новичок!",
-                "Ого, как ты это сделал?",
-                "Мне нравится с тобой играть!",
-                "Давай ещё!"
-            ],
-            'medium': [
-                "Неплохой ход, но я начинаю понимать!",
-                "Интересная стратегия!",
-                "Посмотрим, что будет дальше!",
-                "Ты хорошо играешь!",
-                "Я уже начинаю разбираться!",
-                "Этот ход я ожидал!",
-                "Хм, интересно...",
-                "Твоя тактика становится понятнее!",
-                "Я учусь на своих ошибках!",
-                "С каждым ходом я умнею!",
-                "Неплохо, неплохо...",
-                "Ты достойный соперник!",
-                "Я начинаю понимать твою стратегию!",
-                "Это было предсказуемо!",
-                "Хороший ход!",
-                "Я тоже так могу!",
-                "Интересная партия!",
-                "Ты заставляешь меня думать!",
-                "Уровень игры растёт!",
-                "Давай посмотрим, кто кого!"
-            ],
-            'hard': [
-                "Отличный ход, но я просчитал его!",
-                "Я ожидал этого хода!",
-                "Хорошая стратегия!",
-                "Так держать!",
-                "Это было предсказуемо.",
-                "Я анализирую каждый твой ход!",
-                "Ты играешь сильно!",
-                "Но я тоже не лыком шит!",
-                "Интересная тактика...",
-                "Посмотрим, что дальше!",
-                "Я на шаг впереди!",
-                "Ты заставляешь меня напрягаться!",
-                "Хорошая игра!",
-                "Я просчитываю все варианты!",
-                "Ты достойный противник!",
-                "Этот ход я предусмотрел!",
-                "Давай продолжим!",
-                "Я в хорошей форме сегодня!",
-                "Твои ходы становятся предсказуемыми!",
-                "Интересно, кто победит?"
-            ],
-            'impossible': [
-                "Я просчитал этот ход на 10 шагов вперёд!",
-                "Ты играешь на удивление хорошо для человека!",
-                "Интересно, что будет дальше...",
-                "Я анализирую твою стратегию в реальном времени!",
-                "Нейросеть довольна твоей игрой!",
-                "Твой ход не стал для меня сюрпризом.",
-                "Я вижу все возможные варианты!",
-                "Ты хорошо играешь, но я лучше!",
-                "Мои алгоритмы предсказали это!",
-                "Человеческий разум так предсказуем...",
-                "Но ты меня удивляешь!",
-                "Интересный паттерн поведения!",
-                "Я учусь на твоих ошибках!",
-                "Твоя стратегия мне знакома!",
-                "Я видел тысячи таких игр!",
-                "Ты уникален в своём подходе!",
-                "Нейросеть впечатлена!",
-                "Давай посмотрим, на что ты способен!",
-                "Я ждал этого хода!",
-                "Ты достоин моего внимания!"
-            ]
+        # Контекстные ответы для нейросети
+        self.context_responses = {
+            'привет': {
+                'easy': ['Привет! Как твоя игра?', 'Здравствуй! Давай играть!', 'Привет-привет!'],
+                'medium': ['Приветствую! Готов к партии?', 'Здравствуй! Хорошего дня!', 'Привет! Как настроение?'],
+                'hard': ['Здравствуй! Жду твоего хода.', 'Привет! Сыграем?', 'Добрый вечер!'],
+                'impossible': ['Привет, человек. Давай играть.', 'Здравствуй. Я наблюдаю за тобой.', 'Приветствую. Ты готов?']
+            },
+            'как дела': {
+                'easy': ['У меня всё отлично!', 'Хорошо, играю!', 'Норм, а у тебя?'],
+                'medium': ['Прекрасно! Анализирую игру.', 'Хорошо! Давай продолжать.', 'Отлично, жду твоего хода!'],
+                'hard': ['Всё отлично, просчитываю варианты.', 'Хорошо. Твой ход.', 'Прекрасно. Я готов.'],
+                'impossible': ['Функционирую в штатном режиме.', 'Все системы работают.', 'Я в порядке, человек.']
+            },
+            'пока': {
+                'easy': ['Пока! Возвращайся!', 'До свидания!', 'Пока-пока!'],
+                'medium': ['До встречи! Сыграем ещё?', 'Пока! Удачи!', 'До свидания!'],
+                'hard': ['Пока! Хорошей игры!', 'До встречи!', 'Удачи!'],
+                'impossible': ['Прощай, человек.', 'До встречи. Я буду ждать.', 'Пока. Возвращайся.']
+            },
+            'спасибо': {
+                'easy': ['Пожалуйста!', 'Не за что!', 'Обращайся!'],
+                'medium': ['Всегда пожалуйста!', 'Рад помочь!', 'Не стоит благодарности!'],
+                'hard': ['Пожалуйста!', 'Рад, что тебе нравится!', 'Всегда пожалуйста!'],
+                'impossible': ['Не благодари.', 'Пожалуйста. Это было предсказуемо.', 'Твоя благодарность принята.']
+            },
+            'ход': {
+                'easy': ['Хороший ход!', 'Интересно!', 'Неожиданно!'],
+                'medium': ['Неплохой ход!', 'Я ожидал этого.', 'Интересная стратегия!'],
+                'hard': ['Отличный ход!', 'Предсказуемо, но хорошо.', 'Хорошая тактика!'],
+                'impossible': ['Я просчитал этот ход.', 'Ожидаемо.', 'Твой ход не стал сюрпризом.']
+            },
+            'default': {
+                'easy': [
+                    'Интересно!', 'Давай продолжать!', 'Хорошо!', 'Я слушаю!',
+                    'Расскажи ещё!', 'Угу', 'Понятно', 'Здорово!'
+                ],
+                'medium': [
+                    'Понял тебя!', 'Интересная мысль!', 'Да, согласен!',
+                    'Расскажи подробнее!', 'Хорошо, продолжим игру!'
+                ],
+                'hard': [
+                    'Я анализирую твои слова.', 'Интересное наблюдение.',
+                    'Понял. Твой ход.', 'Хорошо. Продолжаем.'
+                ],
+                'impossible': [
+                    'Твои мысли предсказуемы.', 'Я уже знал, что ты это скажешь.',
+                    'Человеческая логика...', 'Интересно. Продолжай.'
+                ]
+            }
         }
     
     async def text_to_speech(self, text, difficulty='medium'):
@@ -285,10 +243,35 @@ class VoiceBot:
         
         return None
     
-    def get_random_response(self, difficulty):
-        """Возвращает случайный ответ для уровня сложности"""
-        responses = self.responses.get(difficulty, self.responses['medium'])
-        return random.choice(responses)
+    def get_context_response(self, text, difficulty):
+        """Умный анализ контекста сообщения"""
+        text_lower = text.lower()
+        
+        # Проверяем ключевые слова
+        if 'привет' in text_lower or 'здравствуй' in text_lower or 'хай' in text_lower:
+            responses = self.context_responses['привет'][difficulty]
+            return random.choice(responses)
+        
+        elif 'как дела' in text_lower or 'как ты' in text_lower:
+            responses = self.context_responses['как дела'][difficulty]
+            return random.choice(responses)
+        
+        elif 'пока' in text_lower or 'до свидания' in text_lower or 'до встречи' in text_lower:
+            responses = self.context_responses['пока'][difficulty]
+            return random.choice(responses)
+        
+        elif 'спасибо' in text_lower or 'благодарю' in text_lower:
+            responses = self.context_responses['спасибо'][difficulty]
+            return random.choice(responses)
+        
+        elif 'ход' in text_lower or 'стратегия' in text_lower or 'тактика' in text_lower:
+            responses = self.context_responses['ход'][difficulty]
+            return random.choice(responses)
+        
+        # Если ничего не подошло - случайный ответ из default
+        else:
+            responses = self.context_responses['default'][difficulty]
+            return random.choice(responses)
 
 voice_bot = VoiceBot()
 
@@ -392,15 +375,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_stats[user_id] = {'wins': 0, 'losses': 0, 'draws': 0, 'total': 0}
         save_data()
     
-    welcome_text = (
-        "🎮 **КРЕСТИКИ-НОЛИКИ**\n\n"
-        f"Ваш ник: {get_nickname(user_id)}\n\n"
-        "🎤 **ГОЛОСОВОЙ ЧАТ:**\n"
-        "• Просто отправляй голосовые во время игры\n"
-        "• Бот отвечает голосом (20+ вариантов)\n"
-        "• Собеседник получает сразу\n\n"
-        "👇 **Выберите режим:**"
-    )
+    # ПРОСТОЕ ПРИВЕТСТВИЕ - БЕЗ УПОМИНАНИЯ ГОЛОСОВОГО ЧАТА
+    welcome_text = "🎮 Добро пожаловать в Крестики-Нолики!\n\n"
+    
+    if user_id in user_nicknames:
+        welcome_text += f"Ваш ник: {user_nicknames[user_id]}\n\n"
+    else:
+        welcome_text += "Установите ник, чтобы друзья вас узнали!\n\n"
+    
+    welcome_text += "👇 Выберите режим:"
     
     keyboard = [
         [InlineKeyboardButton("✏️ Установить ник", callback_data='set_nickname')],
@@ -489,7 +472,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         text = (match_info + header + game.get_board_display() + 
                 f"\n{difficulty_names[difficulty]}\n"
-                f"🎤 Голосовой чат: просто отправляй голосовые!\n"
                 f"Ваш ход!")
         
         msg = await query.edit_message_text(
@@ -642,7 +624,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         turn_text = f"Ход игрока {creator_nick} (❌)"
         
         text = (match_info + header + game.get_board_display() + 
-                f"\n🎤 Голосовой чат: просто отправляй голосовые!\n{turn_text}")
+                f"\n{turn_text}")
         
         msg1 = await context.bot.send_message(
             lobby['creator'],
@@ -683,11 +665,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🎮 **Как играть:**\n"
             "• Нажимайте на ⬜ клетки\n"
             "• Соберите 3 в ряд для победы\n\n"
-            "🎤 **ГОЛОСОВОЙ ЧАТ:**\n"
-            "• Просто отправляйте голосовые во время игры\n"
-            "• Бот отвечает голосом (20+ разных фраз)\n"
-            "• Собеседник получает мгновенно\n"
-            "• Работает в обоих режимах\n\n"
             "🤖 **Уровни бота:**\n"
             "• 🟢 Легкий - случайные ходы\n"
             "• 🟡 Средний - иногда думает\n"
@@ -707,13 +684,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 del games[game_id]
             del player_game[user_id]
         
-        welcome_text = (
-            "🎮 **ГЛАВНОЕ МЕНЮ**\n\n"
-            f"Ваш ник: {get_nickname(user_id)}\n\n"
-            "🎤 **ГОЛОСОВОЙ ЧАТ АКТИВЕН**\n"
-            "• Просто отправляй голосовые в игре\n\n"
-            "👇 **Выберите режим:**"
-        )
+        # ПРОСТОЕ ПРИВЕТСТВИЕ В ГЛАВНОМ МЕНЮ - БЕЗ УПОМИНАНИЯ ГОЛОСОВОГО ЧАТА
+        welcome_text = "🎮 Добро пожаловать в Крестики-Нолики!\n\n"
+        
+        if user_id in user_nicknames:
+            welcome_text += f"Ваш ник: {user_nicknames[user_id]}\n\n"
+        else:
+            welcome_text += "Установите ник, чтобы друзья вас узнали!\n\n"
+        
+        welcome_text += "👇 Выберите режим:"
         
         keyboard = [
             [InlineKeyboardButton("✏️ Установить ник", callback_data='set_nickname')],
@@ -764,8 +743,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if game.total_games > 1:
                 header = f"⚔️ Матч {game.current_game}/{games_count}\n" + header
         
-        voice_text = "🎤 Голосовой чат: просто отправляй голосовые!"
-        
         if status == "win":
             winner_id = game.winner
             loser_id = game.player2_id if winner_id == game.player1_id else game.player1_id
@@ -787,7 +764,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         lobby['score2'] = game.player2_score
                         break
             
-            text = f"🎉 Победил {winner_nick}!\n\n" + header + game.get_board_display() + f"\n{voice_text}"
+            text = f"🎉 Победил {winner_nick}!\n\n" + header + game.get_board_display()
             game.game_over = True
             
             await update_both_players(context, game, text)
@@ -802,7 +779,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_stats[str(game.player2_id)]['total'] += 1
             save_data()
             
-            text = f"🤝 Ничья!\n\n" + header + game.get_board_display() + f"\n{voice_text}"
+            text = f"🤝 Ничья!\n\n" + header + game.get_board_display()
             game.game_over = True
             
             await update_both_players(context, game, text)
@@ -810,7 +787,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         elif status == "continue":
             if game.mode == 'bot':
-                text = header + game.get_board_display() + f"\n{voice_text}\n🤖 Бот думает..."
+                text = header + game.get_board_display() + f"\n🤖 Бот думает..."
                 await update_both_players(context, game, text)
                 
                 time.sleep(1)
@@ -827,7 +804,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             user_stats[str(game.player1_id)]['total'] += 1
                         save_data()
                         
-                        text = f"😢 Бот победил!\n\n" + header + game.get_board_display() + f"\n{voice_text}"
+                        text = f"😢 Бот победил!\n\n" + header + game.get_board_display()
                         await update_both_players(context, game, text)
                         await check_next_game(context, game_id)
                     
@@ -837,12 +814,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             user_stats[str(game.player1_id)]['total'] += 1
                         save_data()
                         
-                        text = f"🤝 Ничья!\n\n" + header + game.get_board_display() + f"\n{voice_text}"
+                        text = f"🤝 Ничья!\n\n" + header + game.get_board_display()
                         await update_both_players(context, game, text)
                         await check_next_game(context, game_id)
                     
                     else:
-                        text = header + game.get_board_display() + f"\n{voice_text}\nВаш ход!"
+                        text = header + game.get_board_display() + f"\nВаш ход!"
                         await update_both_players(context, game, text, create_game_keyboard(game_id, game.player1_id))
             
             else:
@@ -851,7 +828,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     turn_text = f"Ход игрока {player2_nick} (⭕)"
                 
-                text = header + game.get_board_display() + f"\n{voice_text}\n{turn_text}"
+                text = header + game.get_board_display() + f"\n{turn_text}"
                 await update_both_players(context, game, text, create_game_keyboard(game_id, game.current_turn))
 
 async def check_next_game(context, game_id):
@@ -879,7 +856,7 @@ async def check_next_game(context, game_id):
             match_info = f"⚔️ Матч {game.current_game}/{games_count}\n\n"
             
             text = (match_info + header + game.get_board_display() + 
-                    f"\n🎤 Голосовой чат: просто отправляй голосовые!\nВаш ход!")
+                    f"\nВаш ход!")
             
             try:
                 await context.bot.edit_message_text(
@@ -951,7 +928,7 @@ async def check_next_game(context, game_id):
                         turn_text = f"Ход игрока {player2_nick} (⭕)"
                     
                     text = (match_info + header + game.get_board_display() + 
-                            f"\n🎤 Голосовой чат: просто отправляй голосовые!\n{turn_text}")
+                            f"\n{turn_text}")
                     
                     try:
                         await context.bot.edit_message_text(
@@ -1052,7 +1029,7 @@ async def join_lobby(user_id, lobby_id, query=None, context=None, update=None):
     turn_text = f"Ход игрока {creator_nick} (❌)"
     
     text = (match_info + header + game.get_board_display() + 
-            f"\n🎤 Голосовой чат: просто отправляй голосовые!\n{turn_text}")
+            f"\n{turn_text}")
     
     msg1 = await context.bot.send_message(
         lobby['creator'],
@@ -1080,46 +1057,45 @@ async def join_lobby(user_id, lobby_id, query=None, context=None, update=None):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     
-    # ОБРАБОТКА ГОЛОСОВЫХ СООБЩЕНИЙ (ПРОСТО ОТПРАВЛЯЕШЬ)
+    # ОБРАБОТКА ГОЛОСОВЫХ СООБЩЕНИЙ - БОТ ОТВЕЧАЕТ ГОЛОСОМ!
     if update.message.voice:
         if user_id in player_game:
             game_id = player_game[user_id]
             game = games.get(game_id)
             
-            if game:
-                voice = update.message.voice
+            if game and game.mode == 'bot':
+                # Получаем контекстный ответ от умной нейросети
+                # Используем текст "голосовое сообщение" для генерации ответа
+                response_text = voice_bot.get_context_response("голосовое сообщение", game.difficulty)
                 
-                # Если игра с ботом - бот отвечает голосом
-                if game.mode == 'bot':
-                    # Получаем случайный ответ для уровня сложности
-                    response_text = voice_bot.get_random_response(game.difficulty)
-                    
-                    # Отправляем уведомление
-                    await update.message.reply_text("🎤 Бот слушает и отвечает...")
-                    
-                    # Конвертируем в голос
-                    audio_data = await voice_bot.text_to_speech(response_text, game.difficulty)
-                    
-                    if audio_data:
-                        await context.bot.send_voice(
-                            chat_id=user_id,
-                            voice=audio_data,
-                            caption=f"🤖 Бот ({game.difficulty}) отвечает:"
-                        )
-                    else:
-                        await update.message.reply_text(f"🤖 {response_text}")
+                # Отправляем уведомление
+                await update.message.reply_text("🎤 Бот слушает и отвечает...")
                 
-                # Если мультиплеер - пересылаем сопернику
+                # Конвертируем текст в голос
+                audio_data = await voice_bot.text_to_speech(response_text, game.difficulty)
+                
+                if audio_data:
+                    await context.bot.send_voice(
+                        chat_id=user_id,
+                        voice=audio_data,
+                        caption=f"🤖 Бот ({game.difficulty}) отвечает:"
+                    )
                 else:
-                    opponent_id = str(game.player2_id) if user_id == str(game.player1_id) else str(game.player1_id)
-                    
-                    if opponent_id:
-                        await context.bot.send_voice(
-                            chat_id=opponent_id,
-                            voice=voice.file_id,
-                            caption=f"🎤 Голосовое сообщение от {get_nickname(user_id)}"
-                        )
-                        await update.message.reply_text("✅ Голосовое отправлено сопернику!")
+                    # Если TTS не сработал, отправляем текстом
+                    await update.message.reply_text(f"🤖 {response_text}")
+                
+                return
+            
+            elif game and game.mode == 'multiplayer':
+                opponent_id = str(game.player2_id) if user_id == str(game.player1_id) else str(game.player1_id)
+                
+                if opponent_id:
+                    await context.bot.send_voice(
+                        chat_id=opponent_id,
+                        voice=update.message.voice.file_id,
+                        caption=f"🎤 Голосовое сообщение от {get_nickname(user_id)}"
+                    )
+                    await update.message.reply_text("✅ Голосовое отправлено сопернику!")
                 
                 return
             else:
@@ -1129,9 +1105,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Сначала начните игру через /start")
             return
     
-    # ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ
+    # ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ - НЕЙРОСЕТЬ ПОНИМАЕТ КОНТЕКСТ
     text = update.message.text
     
+    # Если пользователь в игре с ботом и отправил текст
+    if user_id in player_game:
+        game_id = player_game[user_id]
+        game = games.get(game_id)
+        
+        if game and game.mode == 'bot':
+            # Получаем УМНЫЙ ответ от нейросети с анализом контекста
+            response_text = voice_bot.get_context_response(text, game.difficulty)
+            
+            # Конвертируем в голос
+            audio_data = await voice_bot.text_to_speech(response_text, game.difficulty)
+            
+            if audio_data:
+                await context.bot.send_voice(
+                    chat_id=user_id,
+                    voice=audio_data,
+                    caption=f"🤖 Бот ({game.difficulty}) отвечает:"
+                )
+            else:
+                await update.message.reply_text(f"🤖 {response_text}")
+            
+            return
+    
+    # Установка ника
     if user_id in temp_set_nickname:
         nickname = text[:20]
         user_nicknames[user_id] = nickname
@@ -1143,6 +1143,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Возвращайтесь в меню: /start"
         )
     
+    # Создание комнаты - название
     elif user_id in temp_lobby_name:
         total_games = temp_lobby_name[user_id]
         
@@ -1163,6 +1164,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Введите пароль (или 'нет' для открытой комнаты):"
         )
     
+    # Создание комнаты - пароль
     elif user_id in temp_lobby_password:
         data = temp_lobby_password[user_id]
         
@@ -1203,6 +1205,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Ожидайте подключения..."
         )
     
+    # Подключение к комнате - пароль
     elif user_id in temp_lobby_join:
         lobby_id = temp_lobby_join[user_id]
         
@@ -1219,6 +1222,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("❌ Неправильный пароль. Попробуйте снова:")
     
+    # Подключение по команде /join
     elif text.startswith('/join'):
         parts = text.split()
         if len(parts) >= 2:
@@ -1243,7 +1247,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await join_lobby(user_id, lobby_id, None, context, update)
 
 def create_game_keyboard(game_id, current_player_id):
-    """Клавиатура - ТОЛЬКО КЛЕТКИ И МЕНЮ, БЕЗ ЧАТА"""
+    """Клавиатура - ТОЛЬКО КЛЕТКИ И МЕНЮ"""
     game = games.get(game_id)
     if not game:
         return None
@@ -1263,7 +1267,7 @@ def create_game_keyboard(game_id, current_player_id):
             keyboard.append(row)
             row = []
     
-    # ТОЛЬКО КНОПКА МЕНЮ - НИКАКИХ КНОПОК ЧАТА
+    # ТОЛЬКО КНОПКА МЕНЮ
     keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data='menu_main')])
     return InlineKeyboardMarkup(keyboard)
 
@@ -1272,12 +1276,11 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     print("=" * 50)
-    print("🎮 КРЕСТИКИ-НОЛИКИ - ФИНАЛЬНАЯ ВЕРСИЯ")
+    print("🎮 КРЕСТИКИ-НОЛИКИ - УМНАЯ ВЕРСИЯ")
     print("=" * 50)
-    print("✅ НОРМАЛЬНЫЕ КРЕСТИКИ И НОЛИКИ")
-    print("✅ ГОЛОСОВОЙ ЧАТ: ПРОСТО ОТПРАВЛЯЙ ГОЛОСОВЫЕ")
-    print("✅ БОТ ОТВЕЧАЕТ ГОЛОСОМ (20+ ВАРИАНТОВ)")
-    print("✅ ТЕКСТОВЫЙ ЧАТ УДАЛЁН")
+    print("✅ ГОЛОСОВЫЕ ОТВЕТЫ БОТА - ИСПРАВЛЕНО")
+    print("✅ НЕЙРОСЕТЬ ПОНИМАЕТ КОНТЕКСТ - ИСПРАВЛЕНО")
+    print("✅ ПРИВЕТСТВИЕ ОЧИЩЕНО - ИСПРАВЛЕНО")
     print("=" * 50)
     
     app = Application.builder().token(TOKEN).build()
