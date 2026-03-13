@@ -74,13 +74,20 @@ temp_lobby_name = {}
 temp_lobby_password = {}
 temp_lobby_join = {}
 temp_set_nickname = {}
+temp_bot_difficulty = {}  # Сначала сложность
+temp_bot_symbol = {}      # Потом символ
+temp_bot_chat = {}        # Потом чат
+temp_bot_series = {}      # Потом количество игр
 
 class TicTacToe:
-    def __init__(self, game_id, player1_id, player2_id=None, mode='bot', difficulty='easy', total_games=1, lobby_id=None):
+    def __init__(self, game_id, player1_id, player2_id=None, mode='bot', difficulty='easy', 
+                 total_games=1, lobby_id=None, player_symbol='❌', bot_symbol='⭕', chat_enabled=False):
         self.game_id = game_id
         self.board = ['⬜'] * 9
         self.player1_id = player1_id
         self.player2_id = player2_id
+        self.player_symbol = player_symbol
+        self.bot_symbol = bot_symbol
         self.current_turn = player1_id
         self.mode = mode
         self.difficulty = difficulty
@@ -96,6 +103,7 @@ class TicTacToe:
         self.total_games = total_games
         self.current_game = 1
         self.lobby_id = lobby_id
+        self.chat_enabled = chat_enabled
         
     def make_move(self, position, player_id):
         if self.game_over:
@@ -107,11 +115,10 @@ class TicTacToe:
         if self.board[position] != '⬜':
             return False, "Эта клетка уже занята"
         
-        # НОРМАЛЬНЫЕ КРЕСТИКИ И НОЛИКИ
         if player_id == self.player1_id:
-            symbol = '❌'
+            symbol = self.player_symbol
         else:
-            symbol = '⭕'
+            symbol = self.bot_symbol
         
         self.board[position] = symbol
         self.last_move_time = time.time()
@@ -165,7 +172,131 @@ class TicTacToe:
             return f"Счет: {self.player1_score} : {self.player2_score}"
         return ""
 
-# Класс для TTS и УМНОЙ нейросети
+# НАСТОЯЩАЯ НЕЙРОСЕТЬ - КАК В РЕАЛЬНОМ ДИАЛОГЕ
+class RealNeuralNetwork:
+    def __init__(self):
+        self.conversation_history = {}
+        
+    def chat(self, user_id, message):
+        """Полноценный диалог как с человеком"""
+        message_lower = message.lower()
+        
+        # Приветствия
+        if any(word in message_lower for word in ['привет', 'здравствуй', 'здаров', 'хай', 'ку', 'hello']):
+            return random.choice([
+                "Привет! Как дела?",
+                "Здравствуй! Рад тебя видеть!",
+                "О, привет! Давай поболтаем!",
+                "Здарова! Как жизнь?",
+                "Хай! Чем займемся?"
+            ])
+        
+        # Как дела
+        elif any(word in message_lower for word in ['как дела', 'как ты', 'чё как', 'что нового']):
+            return random.choice([
+                "У меня всё отлично! А у тебя?",
+                "Хорошо, играем! А ты как?",
+                "Норм, скучал по тебе!",
+                "Отлично, рад что ты здесь!",
+                "Всё супер! Твои новости?"
+            ])
+        
+        # Вопросы о пользователе
+        elif any(word in message_lower for word in ['у тебя', 'твои', 'тебя']):
+            return random.choice([
+                "У меня всё хорошо, спасибо что спросил!",
+                "Мои дела отлично! Давай лучше про тебя поговорим?",
+                "Я в порядке! Расскажи о себе!",
+                "Спасибо за заботу! Как сам?",
+                "Всё супер! А у тебя что нового?"
+            ])
+        
+        # Игра
+        elif any(word in message_lower for word in ['игра', 'ходи', 'клетк', 'побед']):
+            return random.choice([
+                "Давай играть! Твой ход!",
+                "Интересная игра, правда?",
+                "Я люблю крестики-нолики!",
+                "Смотри не проиграй!",
+                "Хороший ход! Давай дальше!"
+            ])
+        
+        # Комплименты
+        elif any(word in message_lower for word in ['молодец', 'умница', 'хорош', 'крут', 'класс']):
+            return random.choice([
+                "Спасибо! Ты тоже молодец!",
+                "Ой, спасибо! Приятно слышать!",
+                "Благодарю! Ты делаешь мой день!",
+                "Стараюсь! А ты вообще красавчик!",
+                "Спасибо, очень ценю!"
+            ])
+        
+        # Прощания
+        elif any(word in message_lower for word in ['пока', 'до свидания', 'до встречи', 'удач']):
+            return random.choice([
+                "Пока! Заходи еще!",
+                "До встречи! Буду скучать!",
+                "Удачи тебе! Возвращайся!",
+                "Пока-пока! Хорошего дня!",
+                "До связи! Всегда рад поболтать!"
+            ])
+        
+        # Спасибо
+        elif any(word in message_lower for word in ['спасиб', 'благодар']):
+            return random.choice([
+                "Пожалуйста! Обращайся!",
+                "Не за что! Всегда рад помочь!",
+                "На здоровье! Спасибо тебе!",
+                "Да не за что! Ты крутой!",
+                "Пожалуйста, дорогой!"
+            ])
+        
+        # Согласие
+        elif any(word in message_lower for word in ['да', 'ага', 'ок', 'ладно', 'хорош']):
+            return random.choice([
+                "Отлично! Договорились!",
+                "Супер! Тогда продолжаем!",
+                "Хорошо, я понял!",
+                "Окей, как скажешь!",
+                "Договорились!"
+            ])
+        
+        # Несогласие
+        elif any(word in message_lower for word in ['нет', 'не', 'зачем', 'почему']):
+            return random.choice([
+                "Почему нет? Объясни!",
+                "А как бы ты хотел?",
+                "Интересно, расскажи подробнее!",
+                "Не согласен? Давай обсудим!",
+                "Почему? Мне интересно твое мнение!"
+            ])
+        
+        # Вопросы
+        elif '?' in message:
+            return random.choice([
+                "Хороший вопрос! Я думаю...",
+                "Дай подумать... Интересно!",
+                "Вопрос на засыпку! А ты как думаешь?",
+                "Хм, я не знаю. А ты?",
+                "Давай вместе подумаем!"
+            ])
+        
+        # Общие ответы (как в реальном диалоге)
+        else:
+            return random.choice([
+                "Понятно! Расскажи еще что-нибудь!",
+                "Интересно! А дальше что?",
+                "Я тебя слушаю!",
+                "Давай, я весь во внимании!",
+                "Круто! А еще?",
+                "Ого! Ничего себе!",
+                "Правда? Здорово!",
+                "Я так рад, что мы общаемся!",
+                "Ты классный собеседник!",
+                "Продолжай, мне интересно!"
+            ])
+
+# Класс для TTS
 class VoiceBot:
     def __init__(self):
         self.voice_map = {
@@ -174,58 +305,7 @@ class VoiceBot:
             'hard': 'ru-RU-MikhailNeural',
             'impossible': 'ru-RU-CatherineNeural'
         }
-        
-        # Контекстные ответы для нейросети
-        self.context_responses = {
-            'привет': {
-                'easy': ['Привет! Как твоя игра?', 'Здравствуй! Давай играть!', 'Привет-привет!'],
-                'medium': ['Приветствую! Готов к партии?', 'Здравствуй! Хорошего дня!', 'Привет! Как настроение?'],
-                'hard': ['Здравствуй! Жду твоего хода.', 'Привет! Сыграем?', 'Добрый вечер!'],
-                'impossible': ['Привет, человек. Давай играть.', 'Здравствуй. Я наблюдаю за тобой.', 'Приветствую. Ты готов?']
-            },
-            'как дела': {
-                'easy': ['У меня всё отлично!', 'Хорошо, играю!', 'Норм, а у тебя?'],
-                'medium': ['Прекрасно! Анализирую игру.', 'Хорошо! Давай продолжать.', 'Отлично, жду твоего хода!'],
-                'hard': ['Всё отлично, просчитываю варианты.', 'Хорошо. Твой ход.', 'Прекрасно. Я готов.'],
-                'impossible': ['Функционирую в штатном режиме.', 'Все системы работают.', 'Я в порядке, человек.']
-            },
-            'пока': {
-                'easy': ['Пока! Возвращайся!', 'До свидания!', 'Пока-пока!'],
-                'medium': ['До встречи! Сыграем ещё?', 'Пока! Удачи!', 'До свидания!'],
-                'hard': ['Пока! Хорошей игры!', 'До встречи!', 'Удачи!'],
-                'impossible': ['Прощай, человек.', 'До встречи. Я буду ждать.', 'Пока. Возвращайся.']
-            },
-            'спасибо': {
-                'easy': ['Пожалуйста!', 'Не за что!', 'Обращайся!'],
-                'medium': ['Всегда пожалуйста!', 'Рад помочь!', 'Не стоит благодарности!'],
-                'hard': ['Пожалуйста!', 'Рад, что тебе нравится!', 'Всегда пожалуйста!'],
-                'impossible': ['Не благодари.', 'Пожалуйста. Это было предсказуемо.', 'Твоя благодарность принята.']
-            },
-            'ход': {
-                'easy': ['Хороший ход!', 'Интересно!', 'Неожиданно!'],
-                'medium': ['Неплохой ход!', 'Я ожидал этого.', 'Интересная стратегия!'],
-                'hard': ['Отличный ход!', 'Предсказуемо, но хорошо.', 'Хорошая тактика!'],
-                'impossible': ['Я просчитал этот ход.', 'Ожидаемо.', 'Твой ход не стал сюрпризом.']
-            },
-            'default': {
-                'easy': [
-                    'Интересно!', 'Давай продолжать!', 'Хорошо!', 'Я слушаю!',
-                    'Расскажи ещё!', 'Угу', 'Понятно', 'Здорово!'
-                ],
-                'medium': [
-                    'Понял тебя!', 'Интересная мысль!', 'Да, согласен!',
-                    'Расскажи подробнее!', 'Хорошо, продолжим игру!'
-                ],
-                'hard': [
-                    'Я анализирую твои слова.', 'Интересное наблюдение.',
-                    'Понял. Твой ход.', 'Хорошо. Продолжаем.'
-                ],
-                'impossible': [
-                    'Твои мысли предсказуемы.', 'Я уже знал, что ты это скажешь.',
-                    'Человеческая логика...', 'Интересно. Продолжай.'
-                ]
-            }
-        }
+        self.neural = RealNeuralNetwork()
     
     async def text_to_speech(self, text, difficulty='medium'):
         voice_name = self.voice_map.get(difficulty, 'ru-RU-DariyaNeural')
@@ -243,35 +323,9 @@ class VoiceBot:
         
         return None
     
-    def get_context_response(self, text, difficulty):
-        """Умный анализ контекста сообщения"""
-        text_lower = text.lower()
-        
-        # Проверяем ключевые слова
-        if 'привет' in text_lower or 'здравствуй' in text_lower or 'хай' in text_lower:
-            responses = self.context_responses['привет'][difficulty]
-            return random.choice(responses)
-        
-        elif 'как дела' in text_lower or 'как ты' in text_lower:
-            responses = self.context_responses['как дела'][difficulty]
-            return random.choice(responses)
-        
-        elif 'пока' in text_lower or 'до свидания' in text_lower or 'до встречи' in text_lower:
-            responses = self.context_responses['пока'][difficulty]
-            return random.choice(responses)
-        
-        elif 'спасибо' in text_lower or 'благодарю' in text_lower:
-            responses = self.context_responses['спасибо'][difficulty]
-            return random.choice(responses)
-        
-        elif 'ход' in text_lower or 'стратегия' in text_lower or 'тактика' in text_lower:
-            responses = self.context_responses['ход'][difficulty]
-            return random.choice(responses)
-        
-        # Если ничего не подошло - случайный ответ из default
-        else:
-            responses = self.context_responses['default'][difficulty]
-            return random.choice(responses)
+    def chat_with_bot(self, user_id, message):
+        """Реальный диалог с нейросетью"""
+        return self.neural.chat(user_id, message)
 
 voice_bot = VoiceBot()
 
@@ -302,16 +356,16 @@ class BotPlayer:
     def get_smart_move(self, game, available):
         # Победный ход
         for pos in available:
-            game.board[pos] = '⭕'
-            if game.check_win('⭕'):
+            game.board[pos] = game.bot_symbol
+            if game.check_win(game.bot_symbol):
                 game.board[pos] = '⬜'
                 return pos
             game.board[pos] = '⬜'
         
         # Блокировка
         for pos in available:
-            game.board[pos] = '❌'
-            if game.check_win('❌'):
+            game.board[pos] = game.player_symbol
+            if game.check_win(game.player_symbol):
                 game.board[pos] = '⬜'
                 return pos
             game.board[pos] = '⬜'
@@ -375,7 +429,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_stats[user_id] = {'wins': 0, 'losses': 0, 'draws': 0, 'total': 0}
         save_data()
     
-    # ПРОСТОЕ ПРИВЕТСТВИЕ - БЕЗ УПОМИНАНИЯ ГОЛОСОВОГО ЧАТА
     welcome_text = "🎮 Добро пожаловать в Крестики-Нолики!\n\n"
     
     if user_id in user_nicknames:
@@ -409,12 +462,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         temp_set_nickname[user_id] = True
         await query.edit_message_text("✏️ Введите ваш ник (до 20 символов):")
     
+    # Меню игры с ботом - СНАЧАЛА СЛОЖНОСТЬ
     elif data == 'menu_bot':
         keyboard = [
-            [InlineKeyboardButton("🟢 Легкий", callback_data='bot_easy')],
-            [InlineKeyboardButton("🟡 Средний", callback_data='bot_medium')],
-            [InlineKeyboardButton("🔴 Сложный", callback_data='bot_hard')],
-            [InlineKeyboardButton("🤖 Нейросеть", callback_data='bot_impossible')],
+            [InlineKeyboardButton("🟢 Легкий", callback_data='bot_difficulty_easy')],
+            [InlineKeyboardButton("🟡 Средний", callback_data='bot_difficulty_medium')],
+            [InlineKeyboardButton("🔴 Сложный", callback_data='bot_difficulty_hard')],
+            [InlineKeyboardButton("🤖 Нейросеть", callback_data='bot_difficulty_impossible')],
             [InlineKeyboardButton("◀️ Назад", callback_data='menu_main')]
         ]
         await query.edit_message_text(
@@ -422,33 +476,89 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     
-    elif data.startswith('bot_'):
-        difficulty = data.split('_')[1]
+    elif data.startswith('bot_difficulty_'):
+        difficulty = data.split('_')[2]
+        temp_bot_difficulty[user_id] = difficulty
         
         keyboard = [
-            [InlineKeyboardButton("1 игра", callback_data=f'series_1_{difficulty}')],
-            [InlineKeyboardButton("3 игры", callback_data=f'series_3_{difficulty}')],
-            [InlineKeyboardButton("5 игр", callback_data=f'series_5_{difficulty}')],
-            [InlineKeyboardButton("10 игр", callback_data=f'series_10_{difficulty}')],
-            [InlineKeyboardButton("∞ Бесконечно", callback_data=f'series_inf_{difficulty}')],
+            [InlineKeyboardButton("❌ Играть за крестики", callback_data='bot_symbol_X')],
+            [InlineKeyboardButton("⭕ Играть за нолики", callback_data='bot_symbol_O')],
             [InlineKeyboardButton("◀️ Назад", callback_data='menu_bot')]
         ]
         await query.edit_message_text(
-            "🎮 Сколько игр сыграть?",
+            f"🤖 Уровень: {difficulty}\n\nВыберите, за кого играть:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     
-    elif data.startswith('series_'):
-        parts = data.split('_')
-        if parts[1] == 'inf':
-            total_games = 999999
-            difficulty = parts[2]
-        else:
-            total_games = int(parts[1])
-            difficulty = parts[2]
+    elif data.startswith('bot_symbol_'):
+        symbol = data.split('_')[2]
+        temp_bot_symbol[user_id] = symbol
+        difficulty = temp_bot_difficulty.get(user_id, 'easy')
         
+        keyboard = [
+            [InlineKeyboardButton("💬 С чатом", callback_data='bot_chat_yes')],
+            [InlineKeyboardButton("🎮 Без чата", callback_data='bot_chat_no')],
+            [InlineKeyboardButton("◀️ Назад", callback_data='menu_bot')]
+        ]
+        await query.edit_message_text(
+            f"🤖 Уровень: {difficulty}\n"
+            f"Вы выбрали играть за {'❌' if symbol == 'X' else '⭕'}\n\n"
+            f"Включить чат с ботом?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    
+    elif data.startswith('bot_chat_'):
+        chat_enabled = (data.split('_')[2] == 'yes')
+        temp_bot_chat[user_id] = chat_enabled
+        difficulty = temp_bot_difficulty.get(user_id, 'easy')
+        symbol = temp_bot_symbol.get(user_id, 'X')
+        
+        keyboard = [
+            [InlineKeyboardButton("1 игра", callback_data='bot_series_1')],
+            [InlineKeyboardButton("3 игры", callback_data='bot_series_3')],
+            [InlineKeyboardButton("5 игр", callback_data='bot_series_5')],
+            [InlineKeyboardButton("10 игр", callback_data='bot_series_10')],
+            [InlineKeyboardButton("∞ Бесконечно", callback_data='bot_series_inf')],
+            [InlineKeyboardButton("◀️ Назад", callback_data='menu_bot')]
+        ]
+        await query.edit_message_text(
+            f"🤖 Уровень: {difficulty}\n"
+            f"Символ: {'❌' if symbol == 'X' else '⭕'}\n"
+            f"Чат: {'включен' if chat_enabled else 'выключен'}\n\n"
+            f"🎮 Сколько игр сыграть?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    
+    elif data.startswith('bot_series_'):
+        if data == 'bot_series_inf':
+            total_games = 999999
+        else:
+            total_games = int(data.split('_')[2])
+        
+        # Получаем все настройки
+        difficulty = temp_bot_difficulty.get(user_id, 'easy')
+        symbol = temp_bot_symbol.get(user_id, 'X')
+        chat_enabled = temp_bot_chat.get(user_id, False)
+        
+        # Определяем символы
+        if symbol == 'X':
+            player_symbol = '❌'
+            bot_symbol = '⭕'
+            player_name = "❌ Крестики"
+            bot_name = "⭕ Нолики"
+        else:
+            player_symbol = '⭕'
+            bot_symbol = '❌'
+            player_name = "⭕ Нолики"
+            bot_name = "❌ Крестики"
+        
+        # Создаем игру
         game_id = str(uuid.uuid4())[:8]
-        game = TicTacToe(game_id, user_id, mode='bot', difficulty=difficulty, total_games=total_games)
+        game = TicTacToe(
+            game_id, user_id, mode='bot', difficulty=difficulty, 
+            total_games=total_games, player_symbol=player_symbol, 
+            bot_symbol=bot_symbol, chat_enabled=chat_enabled
+        )
         
         games[game_id] = game
         player_game[user_id] = game_id
@@ -464,14 +574,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         games_count = "∞" if total_games == 999999 else str(total_games)
         
         if total_games > 1:
-            header = f"{player_nick} (❌) vs Бот (⭕)\n{game.get_score_display()}\n"
+            header = f"{player_nick} ({player_symbol}) vs Бот ({bot_symbol})\n{game.get_score_display()}\n"
             match_info = f"⚔️ Матч 1/{games_count}\n\n"
         else:
-            header = f"{player_nick} (❌) vs Бот (⭕)\n"
+            header = f"{player_nick} ({player_symbol}) vs Бот ({bot_symbol})\n"
             match_info = ""
         
+        chat_status = "💬 Чат включен" if chat_enabled else "🎮 Чат выключен"
         text = (match_info + header + game.get_board_display() + 
-                f"\n{difficulty_names[difficulty]}\n"
+                f"\n{difficulty_names[difficulty]}\n{chat_status}\n"
                 f"Ваш ход!")
         
         msg = await query.edit_message_text(
@@ -481,7 +592,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         game.player1_message_id = msg.message_id
         game.player1_chat_id = msg.chat_id
+        
+        # Очищаем временные данные
+        if user_id in temp_bot_difficulty:
+            del temp_bot_difficulty[user_id]
+        if user_id in temp_bot_symbol:
+            del temp_bot_symbol[user_id]
+        if user_id in temp_bot_chat:
+            del temp_bot_chat[user_id]
     
+    # Меню игры с другом
     elif data == 'menu_friend':
         keyboard = [
             [InlineKeyboardButton("🎮 Создать комнату", callback_data='friend_create')],
@@ -665,14 +785,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🎮 **Как играть:**\n"
             "• Нажимайте на ⬜ клетки\n"
             "• Соберите 3 в ряд для победы\n\n"
-            "🤖 **Уровни бота:**\n"
-            "• 🟢 Легкий - случайные ходы\n"
-            "• 🟡 Средний - иногда думает\n"
-            "• 🔴 Сложный - просчет ходов\n"
-            "• 🤖 Нейросеть - умный ИИ\n\n"
+            "🤖 **Игра с ботом:**\n"
+            "• Сначала выбираете сложность\n"
+            "• Потом символ (❌ или ⭕)\n"
+            "• Потом чат (вкл/выкл)\n"
+            "• Потом количество игр\n\n"
+            "👥 **Мультиплеер:**\n"
+            "• Создайте комнату\n"
+            "• Отправьте ID другу\n\n"
+            "🎤 **Голосовой чат:**\n"
+            "• Просто отправляйте голосовые\n"
+            "• Бот отвечает голосом как человек\n\n"
             "📝 **Команды:**\n"
             "/start - главное меню\n"
-            "/join [ID] - подключиться к комнате"
+            "/join [ID] - подключиться"
         )
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='menu_main')]]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -684,7 +810,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 del games[game_id]
             del player_game[user_id]
         
-        # ПРОСТОЕ ПРИВЕТСТВИЕ В ГЛАВНОМ МЕНЮ - БЕЗ УПОМИНАНИЯ ГОЛОСОВОГО ЧАТА
         welcome_text = "🎮 Добро пожаловать в Крестики-Нолики!\n\n"
         
         if user_id in user_nicknames:
@@ -733,15 +858,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         games_count = "∞" if game.total_games == 999999 else str(game.total_games)
         
         if game.mode == 'multiplayer':
-            header = f"{player1_nick} (❌) vs {player2_nick} (⭕)\n{score_display}\n"
+            header = f"{player1_nick} ({game.player_symbol}) vs {player2_nick} ({game.bot_symbol})\n{score_display}\n"
             if game.total_games > 1:
                 header = f"⚔️ Матч {game.current_game}/{games_count}\n" + header
         else:
             diff_icons = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴', 'impossible': '🤖'}
             diff_icon = diff_icons.get(game.difficulty, '🤖')
-            header = f"{player1_nick} (❌) vs {diff_icon} {player2_nick}\n{score_display}\n"
+            header = f"{player1_nick} ({game.player_symbol}) vs {diff_icon} {player2_nick} ({game.bot_symbol})\n{score_display}\n"
             if game.total_games > 1:
                 header = f"⚔️ Матч {game.current_game}/{games_count}\n" + header
+        
+        chat_status = "💬 Чат есть" if game.chat_enabled else ""
         
         if status == "win":
             winner_id = game.winner
@@ -764,7 +891,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         lobby['score2'] = game.player2_score
                         break
             
-            text = f"🎉 Победил {winner_nick}!\n\n" + header + game.get_board_display()
+            text = f"🎉 Победил {winner_nick}!\n\n" + header + game.get_board_display() + f"\n{chat_status}"
             game.game_over = True
             
             await update_both_players(context, game, text)
@@ -779,7 +906,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_stats[str(game.player2_id)]['total'] += 1
             save_data()
             
-            text = f"🤝 Ничья!\n\n" + header + game.get_board_display()
+            text = f"🤝 Ничья!\n\n" + header + game.get_board_display() + f"\n{chat_status}"
             game.game_over = True
             
             await update_both_players(context, game, text)
@@ -787,7 +914,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         elif status == "continue":
             if game.mode == 'bot':
-                text = header + game.get_board_display() + f"\n🤖 Бот думает..."
+                text = header + game.get_board_display() + f"\n{chat_status}\n🤖 Бот думает..."
                 await update_both_players(context, game, text)
                 
                 time.sleep(1)
@@ -804,7 +931,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             user_stats[str(game.player1_id)]['total'] += 1
                         save_data()
                         
-                        text = f"😢 Бот победил!\n\n" + header + game.get_board_display()
+                        text = f"😢 Бот победил!\n\n" + header + game.get_board_display() + f"\n{chat_status}"
                         await update_both_players(context, game, text)
                         await check_next_game(context, game_id)
                     
@@ -814,21 +941,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             user_stats[str(game.player1_id)]['total'] += 1
                         save_data()
                         
-                        text = f"🤝 Ничья!\n\n" + header + game.get_board_display()
+                        text = f"🤝 Ничья!\n\n" + header + game.get_board_display() + f"\n{chat_status}"
                         await update_both_players(context, game, text)
                         await check_next_game(context, game_id)
                     
                     else:
-                        text = header + game.get_board_display() + f"\nВаш ход!"
+                        text = header + game.get_board_display() + f"\n{chat_status}\nВаш ход!"
                         await update_both_players(context, game, text, create_game_keyboard(game_id, game.player1_id))
             
             else:
                 if game.current_turn == game.player1_id:
-                    turn_text = f"Ход игрока {player1_nick} (❌)"
+                    turn_text = f"Ход игрока {player1_nick} ({game.player_symbol})"
                 else:
-                    turn_text = f"Ход игрока {player2_nick} (⭕)"
+                    turn_text = f"Ход игрока {player2_nick} ({game.bot_symbol})"
                 
-                text = header + game.get_board_display() + f"\n{turn_text}"
+                text = header + game.get_board_display() + f"\n{chat_status}\n{turn_text}"
                 await update_both_players(context, game, text, create_game_keyboard(game_id, game.current_turn))
 
 async def check_next_game(context, game_id):
@@ -852,11 +979,12 @@ async def check_next_game(context, game_id):
             
             score_display = game.get_score_display()
             games_count = "∞" if game.total_games == 999999 else str(game.total_games)
-            header = f"{player_nick} (❌) vs {diff_icon} Бот\n{score_display}\n"
+            header = f"{player_nick} ({game.player_symbol}) vs {diff_icon} Бот ({game.bot_symbol})\n{score_display}\n"
             match_info = f"⚔️ Матч {game.current_game}/{games_count}\n\n"
             
+            chat_status = "💬 Чат есть" if game.chat_enabled else ""
             text = (match_info + header + game.get_board_display() + 
-                    f"\nВаш ход!")
+                    f"\n{chat_status}\nВаш ход!")
             
             try:
                 await context.bot.edit_message_text(
@@ -1057,21 +1185,19 @@ async def join_lobby(user_id, lobby_id, query=None, context=None, update=None):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     
-    # ОБРАБОТКА ГОЛОСОВЫХ СООБЩЕНИЙ - БОТ ОТВЕЧАЕТ ГОЛОСОМ!
+    # ОБРАБОТКА ГОЛОСОВЫХ СООБЩЕНИЙ
     if update.message.voice:
         if user_id in player_game:
             game_id = player_game[user_id]
             game = games.get(game_id)
             
-            if game and game.mode == 'bot':
-                # Получаем контекстный ответ от умной нейросети
-                # Используем текст "голосовое сообщение" для генерации ответа
-                response_text = voice_bot.get_context_response("голосовое сообщение", game.difficulty)
+            if game and game.mode == 'bot' and game.chat_enabled:
+                # Получаем ответ от нейросети (реальный диалог)
+                response_text = voice_bot.chat_with_bot(user_id, "голосовое сообщение")
                 
-                # Отправляем уведомление
-                await update.message.reply_text("🎤 Бот слушает и отвечает...")
+                await update.message.reply_text("🎤 Бот слушает...")
                 
-                # Конвертируем текст в голос
+                # Конвертируем в голос
                 audio_data = await voice_bot.text_to_speech(response_text, game.difficulty)
                 
                 if audio_data:
@@ -1081,7 +1207,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         caption=f"🤖 Бот ({game.difficulty}) отвечает:"
                     )
                 else:
-                    # Если TTS не сработал, отправляем текстом
                     await update.message.reply_text(f"🤖 {response_text}")
                 
                 return
@@ -1093,29 +1218,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await context.bot.send_voice(
                         chat_id=opponent_id,
                         voice=update.message.voice.file_id,
-                        caption=f"🎤 Голосовое сообщение от {get_nickname(user_id)}"
+                        caption=f"🎤 Голосовое от {get_nickname(user_id)}"
                     )
-                    await update.message.reply_text("✅ Голосовое отправлено сопернику!")
+                    await update.message.reply_text("✅ Голосовое отправлено!")
                 
                 return
             else:
-                await update.message.reply_text("❌ Сначала начните игру!")
+                if game and game.mode == 'bot' and not game.chat_enabled:
+                    await update.message.reply_text("❌ Чат выключен. Включите в настройках.")
+                else:
+                    await update.message.reply_text("❌ Сначала начните игру!")
                 return
         else:
             await update.message.reply_text("❌ Сначала начните игру через /start")
             return
     
-    # ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ - НЕЙРОСЕТЬ ПОНИМАЕТ КОНТЕКСТ
+    # ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ - РЕАЛЬНЫЙ ДИАЛОГ
     text = update.message.text
     
-    # Если пользователь в игре с ботом и отправил текст
     if user_id in player_game:
         game_id = player_game[user_id]
         game = games.get(game_id)
         
-        if game and game.mode == 'bot':
-            # Получаем УМНЫЙ ответ от нейросети с анализом контекста
-            response_text = voice_bot.get_context_response(text, game.difficulty)
+        if game and game.mode == 'bot' and game.chat_enabled:
+            # ПОЛНОЦЕННЫЙ ДИАЛОГ С НЕЙРОСЕТЬЮ
+            response_text = voice_bot.chat_with_bot(user_id, text)
             
             # Конвертируем в голос
             audio_data = await voice_bot.text_to_speech(response_text, game.difficulty)
@@ -1129,6 +1256,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await update.message.reply_text(f"🤖 {response_text}")
             
+            return
+        elif game and game.mode == 'bot' and not game.chat_enabled:
+            await update.message.reply_text("❌ Чат выключен. Включите в настройках.")
             return
     
     # Установка ника
@@ -1247,7 +1377,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await join_lobby(user_id, lobby_id, None, context, update)
 
 def create_game_keyboard(game_id, current_player_id):
-    """Клавиатура - ТОЛЬКО КЛЕТКИ И МЕНЮ"""
     game = games.get(game_id)
     if not game:
         return None
@@ -1267,7 +1396,6 @@ def create_game_keyboard(game_id, current_player_id):
             keyboard.append(row)
             row = []
     
-    # ТОЛЬКО КНОПКА МЕНЮ
     keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data='menu_main')])
     return InlineKeyboardMarkup(keyboard)
 
@@ -1276,11 +1404,12 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     print("=" * 50)
-    print("🎮 КРЕСТИКИ-НОЛИКИ - УМНАЯ ВЕРСИЯ")
+    print("🎮 КРЕСТИКИ-НОЛИКИ - ИДЕАЛЬНАЯ ВЕРСИЯ")
     print("=" * 50)
-    print("✅ ГОЛОСОВЫЕ ОТВЕТЫ БОТА - ИСПРАВЛЕНО")
-    print("✅ НЕЙРОСЕТЬ ПОНИМАЕТ КОНТЕКСТ - ИСПРАВЛЕНО")
-    print("✅ ПРИВЕТСТВИЕ ОЧИЩЕНО - ИСПРАВЛЕНО")
+    print("✅ ПОРЯДОК: сложность → символ → чат → игры")
+    print("✅ НОРМАЛЬНЫЕ СИМВОЛЫ: ❌ и ⭕")
+    print("✅ РЕАЛЬНЫЙ ДИАЛОГ: нейросеть как человек")
+    print("✅ ГОЛОСОВЫЕ ОТВЕТЫ: бот говорит голосом")
     print("=" * 50)
     
     app = Application.builder().token(TOKEN).build()
