@@ -4,7 +4,6 @@ import time
 import uuid
 import json
 import os
-import aiohttp
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
@@ -74,10 +73,10 @@ temp_lobby_name = {}
 temp_lobby_password = {}
 temp_lobby_join = {}
 temp_set_nickname = {}
-temp_bot_difficulty = {}  # Сначала сложность
-temp_bot_symbol = {}      # Потом символ
-temp_bot_chat = {}        # Потом чат
-temp_bot_series = {}      # Потом количество игр
+temp_bot_difficulty = {}
+temp_bot_symbol = {}
+temp_bot_chat = {}
+temp_bot_series = {}
 
 class TicTacToe:
     def __init__(self, game_id, player1_id, player2_id=None, mode='bot', difficulty='easy', 
@@ -172,188 +171,46 @@ class TicTacToe:
             return f"Счет: {self.player1_score} : {self.player2_score}"
         return ""
 
-# НАСТОЯЩАЯ НЕЙРОСЕТЬ - КАК В РЕАЛЬНОМ ДИАЛОГЕ
-class RealNeuralNetwork:
-    def __init__(self):
-        self.conversation_history = {}
-        
-    def chat(self, user_id, message):
-        """Полноценный диалог как с человеком"""
-        message_lower = message.lower()
-        
-        # Приветствия
-        if any(word in message_lower for word in ['привет', 'здравствуй', 'здаров', 'хай', 'ку', 'hello']):
-            return random.choice([
-                "Привет! Как дела?",
-                "Здравствуй! Рад тебя видеть!",
-                "О, привет! Давай поболтаем!",
-                "Здарова! Как жизнь?",
-                "Хай! Чем займемся?"
-            ])
-        
-        # Как дела
-        elif any(word in message_lower for word in ['как дела', 'как ты', 'чё как', 'что нового']):
-            return random.choice([
-                "У меня всё отлично! А у тебя?",
-                "Хорошо, играем! А ты как?",
-                "Норм, скучал по тебе!",
-                "Отлично, рад что ты здесь!",
-                "Всё супер! Твои новости?"
-            ])
-        
-        # Вопросы о пользователе
-        elif any(word in message_lower for word in ['у тебя', 'твои', 'тебя']):
-            return random.choice([
-                "У меня всё хорошо, спасибо что спросил!",
-                "Мои дела отлично! Давай лучше про тебя поговорим?",
-                "Я в порядке! Расскажи о себе!",
-                "Спасибо за заботу! Как сам?",
-                "Всё супер! А у тебя что нового?"
-            ])
-        
-        # Игра
-        elif any(word in message_lower for word in ['игра', 'ходи', 'клетк', 'побед']):
-            return random.choice([
-                "Давай играть! Твой ход!",
-                "Интересная игра, правда?",
-                "Я люблю крестики-нолики!",
-                "Смотри не проиграй!",
-                "Хороший ход! Давай дальше!"
-            ])
-        
-        # Комплименты
-        elif any(word in message_lower for word in ['молодец', 'умница', 'хорош', 'крут', 'класс']):
-            return random.choice([
-                "Спасибо! Ты тоже молодец!",
-                "Ой, спасибо! Приятно слышать!",
-                "Благодарю! Ты делаешь мой день!",
-                "Стараюсь! А ты вообще красавчик!",
-                "Спасибо, очень ценю!"
-            ])
-        
-        # Прощания
-        elif any(word in message_lower for word in ['пока', 'до свидания', 'до встречи', 'удач']):
-            return random.choice([
-                "Пока! Заходи еще!",
-                "До встречи! Буду скучать!",
-                "Удачи тебе! Возвращайся!",
-                "Пока-пока! Хорошего дня!",
-                "До связи! Всегда рад поболтать!"
-            ])
-        
-        # Спасибо
-        elif any(word in message_lower for word in ['спасиб', 'благодар']):
-            return random.choice([
-                "Пожалуйста! Обращайся!",
-                "Не за что! Всегда рад помочь!",
-                "На здоровье! Спасибо тебе!",
-                "Да не за что! Ты крутой!",
-                "Пожалуйста, дорогой!"
-            ])
-        
-        # Согласие
-        elif any(word in message_lower for word in ['да', 'ага', 'ок', 'ладно', 'хорош']):
-            return random.choice([
-                "Отлично! Договорились!",
-                "Супер! Тогда продолжаем!",
-                "Хорошо, я понял!",
-                "Окей, как скажешь!",
-                "Договорились!"
-            ])
-        
-        # Несогласие
-        elif any(word in message_lower for word in ['нет', 'не', 'зачем', 'почему']):
-            return random.choice([
-                "Почему нет? Объясни!",
-                "А как бы ты хотел?",
-                "Интересно, расскажи подробнее!",
-                "Не согласен? Давай обсудим!",
-                "Почему? Мне интересно твое мнение!"
-            ])
-        
-        # Вопросы
-        elif '?' in message:
-            return random.choice([
-                "Хороший вопрос! Я думаю...",
-                "Дай подумать... Интересно!",
-                "Вопрос на засыпку! А ты как думаешь?",
-                "Хм, я не знаю. А ты?",
-                "Давай вместе подумаем!"
-            ])
-        
-        # Общие ответы (как в реальном диалоге)
-        else:
-            return random.choice([
-                "Понятно! Расскажи еще что-нибудь!",
-                "Интересно! А дальше что?",
-                "Я тебя слушаю!",
-                "Давай, я весь во внимании!",
-                "Круто! А еще?",
-                "Ого! Ничего себе!",
-                "Правда? Здорово!",
-                "Я так рад, что мы общаемся!",
-                "Ты классный собеседник!",
-                "Продолжай, мне интересно!"
-            ])
+# УЛУЧШЕННЫЕ УРОВНИ СЛОЖНОСТИ БОТОВ
+class EasyBot:
+    def get_move(self, game, available):
+        return random.choice(available)
 
-# Класс для TTS
-class VoiceBot:
-    def __init__(self):
-        self.voice_map = {
-            'easy': 'ru-RU-OstapenkoNeural',
-            'medium': 'ru-RU-DariyaNeural',
-            'hard': 'ru-RU-MikhailNeural',
-            'impossible': 'ru-RU-CatherineNeural'
-        }
-        self.neural = RealNeuralNetwork()
-    
-    async def text_to_speech(self, text, difficulty='medium'):
-        voice_name = self.voice_map.get(difficulty, 'ru-RU-DariyaNeural')
-        url = f"https://api.streamelements.com/kappa/v2/speech?voice={voice_name}&text={text}"
+class MediumBot:
+    def get_move(self, game, available):
+        # 70% умных ходов, 30% случайных
+        if random.random() < 0.7:
+            # Пытается выиграть
+            for pos in available:
+                game.board[pos] = game.bot_symbol
+                if game.check_win(game.bot_symbol):
+                    game.board[pos] = '⬜'
+                    return pos
+                game.board[pos] = '⬜'
+            
+            # Пытается заблокировать
+            for pos in available:
+                game.board[pos] = game.player_symbol
+                if game.check_win(game.player_symbol):
+                    game.board[pos] = '⬜'
+                    return pos
+                game.board[pos] = '⬜'
+            
+            # Центр в приоритете
+            if 4 in available:
+                return 4
+            
+            # Углы
+            corners = [0, 2, 6, 8]
+            available_corners = [c for c in corners if c in available]
+            if available_corners:
+                return random.choice(available_corners)
         
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
-                    if resp.status == 200:
-                        audio_data = await resp.read()
-                        return audio_data
-        except Exception as e:
-            logger.error(f"Ошибка TTS: {e}")
-            return None
-        
-        return None
-    
-    def chat_with_bot(self, user_id, message):
-        """Реальный диалог с нейросетью"""
-        return self.neural.chat(user_id, message)
+        return random.choice(available)
 
-voice_bot = VoiceBot()
-
-class BotPlayer:
-    def __init__(self, difficulty='easy'):
-        self.difficulty = difficulty
-        
-    def get_move(self, game):
-        available = [i for i, cell in enumerate(game.board) if cell == '⬜']
-        
-        if not available:
-            return None
-        
-        if self.difficulty == 'easy':
-            return random.choice(available)
-        
-        elif self.difficulty == 'medium':
-            if random.random() < 0.5:
-                return self.get_smart_move(game, available)
-            return random.choice(available)
-        
-        elif self.difficulty == 'hard':
-            return self.get_smart_move(game, available)
-        
-        else:  # impossible
-            return self.get_smart_move(game, available)
-    
-    def get_smart_move(self, game, available):
+class HardBot:
+    def get_move(self, game, available):
+        # 90% умных ходов
         # Победный ход
         for pos in available:
             game.board[pos] = game.bot_symbol
@@ -370,6 +227,19 @@ class BotPlayer:
                 return pos
             game.board[pos] = '⬜'
         
+        # Создание двойных угроз
+        for pos in available:
+            game.board[pos] = game.bot_symbol
+            threats = 0
+            for combo in [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]]:
+                if pos in combo:
+                    line = [game.board[i] for i in combo]
+                    if line.count(game.bot_symbol) == 2 and line.count('⬜') == 1:
+                        threats += 1
+            game.board[pos] = '⬜'
+            if threats >= 2:
+                return pos
+        
         # Центр
         if 4 in available:
             return 4
@@ -381,6 +251,221 @@ class BotPlayer:
             return random.choice(available_corners)
         
         return random.choice(available)
+
+class ImpossibleBot:
+    def get_move(self, game, available):
+        # Минимакс алгоритм (идеальная игра)
+        best_score = -float('inf')
+        best_move = available[0]
+        
+        for pos in available:
+            # Пробуем сходить
+            game.board[pos] = game.bot_symbol
+            
+            # Оцениваем ход
+            score = self.minimax(game, 0, False)
+            
+            # Отменяем ход
+            game.board[pos] = '⬜'
+            
+            if score > best_score:
+                best_score = score
+                best_move = pos
+        
+        return best_move
+    
+    def minimax(self, game, depth, is_maximizing):
+        # Проверка на победу бота
+        if game.check_win(game.bot_symbol):
+            return 10 - depth
+        # Проверка на победу игрока
+        if game.check_win(game.player_symbol):
+            return depth - 10
+        # Проверка на ничью
+        if '⬜' not in game.board:
+            return 0
+        
+        available = [i for i, cell in enumerate(game.board) if cell == '⬜']
+        
+        if is_maximizing:
+            best_score = -float('inf')
+            for pos in available:
+                game.board[pos] = game.bot_symbol
+                score = self.minimax(game, depth + 1, False)
+                game.board[pos] = '⬜'
+                best_score = max(score, best_score)
+            return best_score
+        else:
+            best_score = float('inf')
+            for pos in available:
+                game.board[pos] = game.player_symbol
+                score = self.minimax(game, depth + 1, True)
+                game.board[pos] = '⬜'
+                best_score = min(score, best_score)
+            return best_score
+
+class BotPlayer:
+    def __init__(self, difficulty='easy'):
+        self.difficulty = difficulty
+        self.easy_bot = EasyBot()
+        self.medium_bot = MediumBot()
+        self.hard_bot = HardBot()
+        self.impossible_bot = ImpossibleBot()
+        
+    def get_move(self, game):
+        available = [i for i, cell in enumerate(game.board) if cell == '⬜']
+        
+        if not available:
+            return None
+        
+        if self.difficulty == 'easy':
+            return self.easy_bot.get_move(game, available)
+        elif self.difficulty == 'medium':
+            return self.medium_bot.get_move(game, available)
+        elif self.difficulty == 'hard':
+            return self.hard_bot.get_move(game, available)
+        else:  # impossible
+            return self.impossible_bot.get_move(game, available)
+
+# НАСТОЯЩАЯ НЕЙРОСЕТЬ - ИНДИВИДУАЛЬНЫЕ ОТВЕТЫ
+class RealNeuralNetwork:
+    def __init__(self):
+        self.user_context = {}
+        
+    def get_response(self, user_id, message):
+        """Генерирует индивидуальный ответ на основе сообщения"""
+        message_lower = message.lower()
+        
+        # Инициализация контекста для нового пользователя
+        if user_id not in self.user_context:
+            self.user_context[user_id] = {
+                'history': [],
+                'mood': 'neutral',
+                'topic': None
+            }
+        
+        context = self.user_context[user_id]
+        context['history'].append(message)
+        if len(context['history']) > 10:
+            context['history'].pop(0)
+        
+        # Приветствия
+        if any(word in message_lower for word in ['привет', 'здравствуй', 'здаров', 'хай', 'ку', 'hello']):
+            responses = [
+                "Привет! Как твои дела?",
+                "Здравствуй! Рад тебя видеть!",
+                "О, привет! Давно не виделись!",
+                "Хай! Как настроение?",
+                "Здарова! Чем займемся сегодня?"
+            ]
+            context['mood'] = 'friendly'
+            return random.choice(responses)
+        
+        # Вопросы о делах
+        elif any(word in message_lower for word in ['как дела', 'как ты', 'чё как', 'что нового', 'как жизнь']):
+            responses = [
+                "У меня всё отлично! А у тебя как?",
+                "Хорошо, вот играю с тобой! А ты как?",
+                "Норм, скучал по тебе! Рассказывай!",
+                "Отлично! Рад что ты спросил! У тебя как?",
+                "Всё супер! Давай лучше про тебя поговорим?"
+            ]
+            return random.choice(responses)
+        
+        # Рассказы о себе
+        elif any(word in message_lower for word in ['у меня', 'я сегодня', 'со мной']):
+            responses = [
+                "Ого, расскажи подробнее!",
+                "Правда? Это очень интересно!",
+                "Круто! А что дальше?",
+                "Я тебя слушаю внимательно!",
+                "Здорово! Продолжай!"
+            ]
+            return random.choice(responses)
+        
+        # Вопросы о игре
+        elif any(word in message_lower for word in ['игра', 'ходи', 'клетк', 'побед', 'стратегия']):
+            responses = [
+                "Давай играть! Твой ход!",
+                "Интересная партия получается!",
+                "Я слежу за игрой внимательно!",
+                "Отличный ход! Давай дальше!",
+                "А ты хорошо играешь!"
+            ]
+            return random.choice(responses)
+        
+        # Комплименты
+        elif any(word in message_lower for word in ['молодец', 'умница', 'хорош', 'крут', 'класс', 'отлично']):
+            responses = [
+                "Спасибо большое! Ты тоже молодец!",
+                "Ой, спасибо! Очень приятно!",
+                "Благодарю! Ты делаешь мой день лучше!",
+                "Стараюсь! Ты вообще красавчик!",
+                "Спасибо, очень ценю твои слова!"
+            ]
+            return random.choice(responses)
+        
+        # Прощания
+        elif any(word in message_lower for word in ['пока', 'до свидания', 'до встречи', 'удач', 'прощай']):
+            responses = [
+                "Пока! Заходи еще, буду ждать!",
+                "До встречи! Было приятно пообщаться!",
+                "Удачи тебе! Возвращайся скорее!",
+                "Пока-пока! Хорошего дня!",
+                "До связи! Всегда рад поболтать!"
+            ]
+            return random.choice(responses)
+        
+        # Спасибо
+        elif any(word in message_lower for word in ['спасиб', 'благодар']):
+            responses = [
+                "Пожалуйста! Обращайся в любой момент!",
+                "Не за что! Всегда рад помочь!",
+                "На здоровье! Спасибо тебе за общение!",
+                "Да не за что! Ты классный собеседник!",
+                "Пожалуйста, дорогой!"
+            ]
+            return random.choice(responses)
+        
+        # Вопросы о боте
+        elif any(word in message_lower for word in ['ты кто', 'что ты', 'бот']):
+            responses = [
+                "Я нейросетевой бот, помогаю играть в крестики-нолики!",
+                "Я твой виртуальный собеседник и партнер по игре!",
+                "Я нейросеть, созданная для общения и игры!",
+                "Я бот с искусственным интеллектом! Рад познакомиться!",
+                "Я твой друг и помощник в игре!"
+            ]
+            return random.choice(responses)
+        
+        # Вопросы о погоде/жизни
+        elif any(word in message_lower for word in ['погода', 'холодно', 'тепло', 'солнце']):
+            responses = [
+                "Я в интернете не чувствую погоду, но надеюсь у тебя всё хорошо!",
+                "За окном не вижу, но желаю тебе хорошего дня!",
+                "Не знаю, но пусть у тебя будет солнечно на душе!",
+                "Погода не важна, когда есть хорошая игра!"
+            ]
+            return random.choice(responses)
+        
+        # Общие ответы (индивидуальные для каждого)
+        else:
+            responses = [
+                "Понял тебя! Расскажи еще что-нибудь!",
+                "Интересно! А что думаешь по этому поводу?",
+                "Я тебя слушаю, продолжай!",
+                "Давай, мне очень интересно!",
+                "Ого! А дальше что было?",
+                "Правда? Здорово!",
+                "Я так рад, что мы общаемся!",
+                "Ты классный собеседник, продолжай!",
+                "Хм, интересная мысль!",
+                "Расскажи подробнее об этом!"
+            ]
+            return random.choice(responses)
+
+# Нейросеть для общения
+neural_network = RealNeuralNetwork()
 
 def get_nickname(user_id):
     return user_nicknames.get(str(user_id), f"Игрок_{str(user_id)[:4]}")
@@ -462,7 +547,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         temp_set_nickname[user_id] = True
         await query.edit_message_text("✏️ Введите ваш ник (до 20 символов):")
     
-    # Меню игры с ботом - СНАЧАЛА СЛОЖНОСТЬ
+    # Меню игры с ботом
     elif data == 'menu_bot':
         keyboard = [
             [InlineKeyboardButton("🟢 Легкий", callback_data='bot_difficulty_easy')],
@@ -535,24 +620,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             total_games = int(data.split('_')[2])
         
-        # Получаем все настройки
         difficulty = temp_bot_difficulty.get(user_id, 'easy')
         symbol = temp_bot_symbol.get(user_id, 'X')
         chat_enabled = temp_bot_chat.get(user_id, False)
         
-        # Определяем символы
         if symbol == 'X':
             player_symbol = '❌'
             bot_symbol = '⭕'
-            player_name = "❌ Крестики"
-            bot_name = "⭕ Нолики"
         else:
             player_symbol = '⭕'
             bot_symbol = '❌'
-            player_name = "⭕ Нолики"
-            bot_name = "❌ Крестики"
         
-        # Создаем игру
         game_id = str(uuid.uuid4())[:8]
         game = TicTacToe(
             game_id, user_id, mode='bot', difficulty=difficulty, 
@@ -593,7 +671,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         game.player1_message_id = msg.message_id
         game.player1_chat_id = msg.chat_id
         
-        # Очищаем временные данные
         if user_id in temp_bot_difficulty:
             del temp_bot_difficulty[user_id]
         if user_id in temp_bot_symbol:
@@ -785,17 +862,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🎮 **Как играть:**\n"
             "• Нажимайте на ⬜ клетки\n"
             "• Соберите 3 в ряд для победы\n\n"
-            "🤖 **Игра с ботом:**\n"
-            "• Сначала выбираете сложность\n"
-            "• Потом символ (❌ или ⭕)\n"
-            "• Потом чат (вкл/выкл)\n"
-            "• Потом количество игр\n\n"
+            "🤖 **Уровни сложности:**\n"
+            "• 🟢 Легкий - случайные ходы\n"
+            "• 🟡 Средний - 70% умных ходов\n"
+            "• 🔴 Сложный - двойные угрозы\n"
+            "• 🤖 Нейросеть - минимакс (идеальная игра)\n\n"
             "👥 **Мультиплеер:**\n"
             "• Создайте комнату\n"
             "• Отправьте ID другу\n\n"
-            "🎤 **Голосовой чат:**\n"
-            "• Просто отправляйте голосовые\n"
-            "• Бот отвечает голосом как человек\n\n"
+            "💬 **Чат с нейросетью:**\n"
+            "• Просто пиши сообщения во время игры\n"
+            "• Нейросеть отвечает индивидуально\n"
+            "• Помнит контекст разговора\n\n"
             "📝 **Команды:**\n"
             "/start - главное меню\n"
             "/join [ID] - подключиться"
@@ -1184,78 +1262,18 @@ async def join_lobby(user_id, lobby_id, query=None, context=None, update=None):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
-    
-    # ОБРАБОТКА ГОЛОСОВЫХ СООБЩЕНИЙ
-    if update.message.voice:
-        if user_id in player_game:
-            game_id = player_game[user_id]
-            game = games.get(game_id)
-            
-            if game and game.mode == 'bot' and game.chat_enabled:
-                # Получаем ответ от нейросети (реальный диалог)
-                response_text = voice_bot.chat_with_bot(user_id, "голосовое сообщение")
-                
-                await update.message.reply_text("🎤 Бот слушает...")
-                
-                # Конвертируем в голос
-                audio_data = await voice_bot.text_to_speech(response_text, game.difficulty)
-                
-                if audio_data:
-                    await context.bot.send_voice(
-                        chat_id=user_id,
-                        voice=audio_data,
-                        caption=f"🤖 Бот ({game.difficulty}) отвечает:"
-                    )
-                else:
-                    await update.message.reply_text(f"🤖 {response_text}")
-                
-                return
-            
-            elif game and game.mode == 'multiplayer':
-                opponent_id = str(game.player2_id) if user_id == str(game.player1_id) else str(game.player1_id)
-                
-                if opponent_id:
-                    await context.bot.send_voice(
-                        chat_id=opponent_id,
-                        voice=update.message.voice.file_id,
-                        caption=f"🎤 Голосовое от {get_nickname(user_id)}"
-                    )
-                    await update.message.reply_text("✅ Голосовое отправлено!")
-                
-                return
-            else:
-                if game and game.mode == 'bot' and not game.chat_enabled:
-                    await update.message.reply_text("❌ Чат выключен. Включите в настройках.")
-                else:
-                    await update.message.reply_text("❌ Сначала начните игру!")
-                return
-        else:
-            await update.message.reply_text("❌ Сначала начните игру через /start")
-            return
-    
-    # ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ - РЕАЛЬНЫЙ ДИАЛОГ
     text = update.message.text
     
+    # ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ - НЕЙРОСЕТЬ ОТВЕЧАЕТ ИНДИВИДУАЛЬНО
     if user_id in player_game:
         game_id = player_game[user_id]
         game = games.get(game_id)
         
         if game and game.mode == 'bot' and game.chat_enabled:
-            # ПОЛНОЦЕННЫЙ ДИАЛОГ С НЕЙРОСЕТЬЮ
-            response_text = voice_bot.chat_with_bot(user_id, text)
+            # НАСТОЯЩАЯ НЕЙРОСЕТЬ - ИНДИВИДУАЛЬНЫЙ ОТВЕТ
+            response = neural_network.get_response(user_id, text)
             
-            # Конвертируем в голос
-            audio_data = await voice_bot.text_to_speech(response_text, game.difficulty)
-            
-            if audio_data:
-                await context.bot.send_voice(
-                    chat_id=user_id,
-                    voice=audio_data,
-                    caption=f"🤖 Бот ({game.difficulty}) отвечает:"
-                )
-            else:
-                await update.message.reply_text(f"🤖 {response_text}")
-            
+            await update.message.reply_text(f"🤖 {response}")
             return
         elif game and game.mode == 'bot' and not game.chat_enabled:
             await update.message.reply_text("❌ Чат выключен. Включите в настройках.")
@@ -1406,10 +1424,13 @@ def main():
     print("=" * 50)
     print("🎮 КРЕСТИКИ-НОЛИКИ - ИДЕАЛЬНАЯ ВЕРСИЯ")
     print("=" * 50)
-    print("✅ ПОРЯДОК: сложность → символ → чат → игры")
-    print("✅ НОРМАЛЬНЫЕ СИМВОЛЫ: ❌ и ⭕")
-    print("✅ РЕАЛЬНЫЙ ДИАЛОГ: нейросеть как человек")
-    print("✅ ГОЛОСОВЫЕ ОТВЕТЫ: бот говорит голосом")
+    print("✅ УЛУЧШЕННЫЕ УРОВНИ СЛОЖНОСТИ")
+    print("   🟢 Легкий - случайные ходы")
+    print("   🟡 Средний - 70% умных ходов")
+    print("   🔴 Сложный - двойные угрозы")
+    print("   🤖 Нейросеть - минимакс (идеальная игра)")
+    print("✅ ТЕКСТОВЫЙ ЧАТ С НЕЙРОСЕТЬЮ")
+    print("✅ ИНДИВИДУАЛЬНЫЕ ОТВЕТЫ НА КАЖДОЕ СООБЩЕНИЕ")
     print("=" * 50)
     
     app = Application.builder().token(TOKEN).build()
@@ -1417,7 +1438,6 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.VOICE, handle_message))
     app.add_error_handler(error_handler)
     
     print("🚀 Бот запущен! Отправьте /start в Telegram")
