@@ -1,14 +1,26 @@
 {
   "1910403611": {
-    "wins": 1,
-    "losses": 1,
-    "draws": 0,
-    "total": 2
-  },
-  "8409529596": {
-    "wins": 1,
+    "wins": 0,
     "losses": 0,
     "draws": 0,
-    "total": 1
+    "total": 0
+  },
+  "8409529596": {
+    "wins": 0,
+    "losses": 0,
+    "draws": 0,
+    "total": 0
+  },
+  "8489328949": {
+    "wins": 3,
+    "losses": 0,
+    "draws": 5,
+    "total": 8
+  },
+  "7380279260": {
+    "wins": 0,
+    "losses": 0,
+    "draws": 3,
+    "total": 3
   }
 }
