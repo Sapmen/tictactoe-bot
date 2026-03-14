@@ -4,12 +4,27 @@ import time
 import uuid
 import json
 import os
-import atexit
-import signal
-import sys
+import threading
 from datetime import datetime
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+
+# ===== HEALTH CHECK SERVER ДЛЯ RENDER =====
+health_app = Flask(__name__)
+
+@health_app.route('/')
+def health():
+    return "Bot is running", 200
+
+@health_app.route('/health')
+def health_check():
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}, 200
+
+def run_health_server():
+    port = int(os.environ.get('PORT', 10000))
+    health_app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+# ==========================================
 
 # Настройка логирования
 logging.basicConfig(
@@ -32,13 +47,11 @@ def load_data():
         if os.path.exists(NICKNAMES_FILE):
             with open(NICKNAMES_FILE, 'r', encoding='utf-8') as f:
                 user_nicknames = json.load(f)
-                # Конвертируем ключи обратно в строки (для совместимости)
                 user_nicknames = {str(k): v for k, v in user_nicknames.items()}
         else:
             user_nicknames = {}
     except Exception as e:
         logger.error(f"Ошибка загрузки ников: {e}")
-        # Создаем резервную копию поврежденного файла
         if os.path.exists(NICKNAMES_FILE):
             os.rename(NICKNAMES_FILE, NICKNAMES_FILE + '.bak')
         user_nicknames = {}
@@ -47,7 +60,6 @@ def load_data():
         if os.path.exists(STATS_FILE):
             with open(STATS_FILE, 'r', encoding='utf-8') as f:
                 user_stats = json.load(f)
-                # Конвертируем ключи обратно в строки
                 user_stats = {str(k): v for k, v in user_stats.items()}
         else:
             user_stats = {}
@@ -60,11 +72,10 @@ def load_data():
 # Сохранение данных с немедленной записью на диск
 def save_data():
     try:
-        # Сначала сохраняем во временный файл
         temp_nicknames = NICKNAMES_FILE + '.tmp'
         with open(temp_nicknames, 'w', encoding='utf-8') as f:
             json.dump(user_nicknames, f, ensure_ascii=False, indent=2)
-        os.replace(temp_nicknames, NICKNAMES_FILE)  # Атомарная замена
+        os.replace(temp_nicknames, NICKNAMES_FILE)
     except Exception as e:
         logger.error(f"Ошибка сохранения ников: {e}")
     
@@ -85,25 +96,9 @@ def reset_user_stats(user_id):
         return True
     return False
 
-# Сохраняем данные при выходе
-def exit_handler():
-    logger.info("Сохраняем данные перед выходом...")
-    save_data()
-
-atexit.register(exit_handler)
-
-# Обработка сигналов для экстренного завершения
-def signal_handler(sig, frame):
-    logger.info(f"Получен сигнал {sig}, сохраняем данные...")
-    save_data()
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
 # Загружаем данные при старте
 load_data()
-save_data()  # Сохраняем сразу после загрузки, чтобы создать файлы
+save_data()
 
 # Хранилища данных
 games = {}
@@ -221,9 +216,7 @@ class EasyBot:
 
 class MediumBot:
     def get_move(self, game, available):
-        # 70% умных ходов, 30% случайных
         if random.random() < 0.7:
-            # Пытается выиграть
             for pos in available:
                 game.board[pos] = game.bot_symbol
                 if game.check_win(game.bot_symbol):
@@ -231,7 +224,6 @@ class MediumBot:
                     return pos
                 game.board[pos] = '⬜'
             
-            # Пытается заблокировать
             for pos in available:
                 game.board[pos] = game.player_symbol
                 if game.check_win(game.player_symbol):
@@ -239,11 +231,9 @@ class MediumBot:
                     return pos
                 game.board[pos] = '⬜'
             
-            # Центр в приоритете
             if 4 in available:
                 return 4
             
-            # Углы
             corners = [0, 2, 6, 8]
             available_corners = [c for c in corners if c in available]
             if available_corners:
@@ -253,8 +243,6 @@ class MediumBot:
 
 class HardBot:
     def get_move(self, game, available):
-        # 90% умных ходов
-        # Победный ход
         for pos in available:
             game.board[pos] = game.bot_symbol
             if game.check_win(game.bot_symbol):
@@ -262,7 +250,6 @@ class HardBot:
                 return pos
             game.board[pos] = '⬜'
         
-        # Блокировка
         for pos in available:
             game.board[pos] = game.player_symbol
             if game.check_win(game.player_symbol):
@@ -270,7 +257,6 @@ class HardBot:
                 return pos
             game.board[pos] = '⬜'
         
-        # Создание двойных угроз
         for pos in available:
             game.board[pos] = game.bot_symbol
             threats = 0
@@ -283,11 +269,9 @@ class HardBot:
             if threats >= 2:
                 return pos
         
-        # Центр
         if 4 in available:
             return 4
         
-        # Углы
         corners = [0, 2, 6, 8]
         available_corners = [c for c in corners if c in available]
         if available_corners:
@@ -297,18 +281,12 @@ class HardBot:
 
 class ImpossibleBot:
     def get_move(self, game, available):
-        # Минимакс алгоритм (идеальная игра)
         best_score = -float('inf')
         best_move = available[0]
         
         for pos in available:
-            # Пробуем сходить
             game.board[pos] = game.bot_symbol
-            
-            # Оцениваем ход
             score = self.minimax(game, 0, False)
-            
-            # Отменяем ход
             game.board[pos] = '⬜'
             
             if score > best_score:
@@ -318,13 +296,10 @@ class ImpossibleBot:
         return best_move
     
     def minimax(self, game, depth, is_maximizing):
-        # Проверка на победу бота
         if game.check_win(game.bot_symbol):
             return 10 - depth
-        # Проверка на победу игрока
         if game.check_win(game.player_symbol):
             return depth - 10
-        # Проверка на ничью
         if '⬜' not in game.board:
             return 0
         
@@ -367,19 +342,17 @@ class BotPlayer:
             return self.medium_bot.get_move(game, available)
         elif self.difficulty == 'hard':
             return self.hard_bot.get_move(game, available)
-        else:  # impossible
+        else:
             return self.impossible_bot.get_move(game, available)
 
-# НАСТОЯЩАЯ НЕЙРОСЕТЬ - ИНДИВИДУАЛЬНЫЕ ОТВЕТЫ
+# НЕЙРОСЕТЬ ДЛЯ ОБЩЕНИЯ
 class RealNeuralNetwork:
     def __init__(self):
         self.user_context = {}
         
     def get_response(self, user_id, message):
-        """Генерирует индивидуальный ответ на основе сообщения"""
         message_lower = message.lower()
         
-        # Инициализация контекста для нового пользователя
         if user_id not in self.user_context:
             self.user_context[user_id] = {
                 'history': [],
@@ -392,7 +365,6 @@ class RealNeuralNetwork:
         if len(context['history']) > 10:
             context['history'].pop(0)
         
-        # Приветствия
         if any(word in message_lower for word in ['привет', 'здравствуй', 'здаров', 'хай', 'ку', 'hello']):
             responses = [
                 "Привет! Как твои дела?",
@@ -404,7 +376,6 @@ class RealNeuralNetwork:
             context['mood'] = 'friendly'
             return random.choice(responses)
         
-        # Вопросы о делах
         elif any(word in message_lower for word in ['как дела', 'как ты', 'чё как', 'что нового', 'как жизнь']):
             responses = [
                 "У меня всё отлично! А у тебя как?",
@@ -415,7 +386,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
         
-        # Рассказы о себе
         elif any(word in message_lower for word in ['у меня', 'я сегодня', 'со мной']):
             responses = [
                 "Ого, расскажи подробнее!",
@@ -426,7 +396,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
         
-        # Вопросы о игре
         elif any(word in message_lower for word in ['игра', 'ходи', 'клетк', 'побед', 'стратегия']):
             responses = [
                 "Давай играть! Твой ход!",
@@ -437,7 +406,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
         
-        # Комплименты
         elif any(word in message_lower for word in ['молодец', 'умница', 'хорош', 'крут', 'класс', 'отлично']):
             responses = [
                 "Спасибо большое! Ты тоже молодец!",
@@ -448,7 +416,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
         
-        # Прощания
         elif any(word in message_lower for word in ['пока', 'до свидания', 'до встречи', 'удач', 'прощай']):
             responses = [
                 "Пока! Заходи еще, буду ждать!",
@@ -459,7 +426,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
         
-        # Спасибо
         elif any(word in message_lower for word in ['спасиб', 'благодар']):
             responses = [
                 "Пожалуйста! Обращайся в любой момент!",
@@ -470,7 +436,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
         
-        # Вопросы о боте
         elif any(word in message_lower for word in ['ты кто', 'что ты', 'бот']):
             responses = [
                 "Я нейросетевой бот, помогаю играть в крестики-нолики!",
@@ -481,7 +446,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
         
-        # Вопросы о погоде/жизни
         elif any(word in message_lower for word in ['погода', 'холодно', 'тепло', 'солнце']):
             responses = [
                 "Я в интернете не чувствую погоду, но надеюсь у тебя всё хорошо!",
@@ -491,7 +455,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
         
-        # Общие ответы (индивидуальные для каждого)
         else:
             responses = [
                 "Понял тебя! Расскажи еще что-нибудь!",
@@ -507,7 +470,6 @@ class RealNeuralNetwork:
             ]
             return random.choice(responses)
 
-# Нейросеть для общения
 neural_network = RealNeuralNetwork()
 
 def get_nickname(user_id):
@@ -590,7 +552,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         temp_set_nickname[user_id] = True
         await query.edit_message_text("✏️ Введите ваш ник (до 20 символов):")
     
-    # Меню игры с ботом
     elif data == 'menu_bot':
         keyboard = [
             [InlineKeyboardButton("🟢 Легкий", callback_data='bot_difficulty_easy')],
@@ -721,7 +682,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id in temp_bot_chat:
             del temp_bot_chat[user_id]
     
-    # Меню игры с другом
     elif data == 'menu_friend':
         keyboard = [
             [InlineKeyboardButton("🎮 Создать комнату", callback_data='friend_create')],
@@ -882,7 +842,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         game.player2_message_id = msg2.message_id
         game.player2_chat_id = msg2.chat_id
     
-    # Статистика с кнопкой сброса
     elif data == 'menu_stats':
         user_id_str = str(user_id)
         stats = user_stats.get(user_id_str, {'wins': 0, 'losses': 0, 'draws': 0, 'total': 0})
@@ -898,18 +857,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📈 Процент побед: {win_rate:.1f}%"
         )
         
-        # Добавляем кнопку сброса статистики
         keyboard = [
             [InlineKeyboardButton("🔄 Сбросить статистику", callback_data='reset_stats')],
             [InlineKeyboardButton("◀️ Назад", callback_data='menu_main')]
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
     
-    # Сброс статистики
     elif data == 'reset_stats':
-        user_id_str = str(user_id)
-        
-        # Запрашиваем подтверждение
         keyboard = [
             [InlineKeyboardButton("✅ Да, сбросить", callback_data='confirm_reset')],
             [InlineKeyboardButton("❌ Нет, отмена", callback_data='menu_stats')]
@@ -919,7 +873,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     
-    # Подтверждение сброса статистики
     elif data == 'confirm_reset':
         user_id_str = str(user_id)
         
@@ -947,8 +900,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Отправьте ID другу\n\n"
             "💬 **Чат с нейросетью:**\n"
             "• Просто пиши сообщения во время игры\n"
-            "• Нейросеть отвечает индивидуально\n"
-            "• Помнит контекст разговора\n\n"
+            "• Нейросеть отвечает индивидуально\n\n"
             "📊 **Статистика:**\n"
             "• Сохраняется даже при сбоях\n"
             "• Можно сбросить кнопкой\n\n"
@@ -1342,22 +1294,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     text = update.message.text
     
-    # ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ - НЕЙРОСЕТЬ ОТВЕЧАЕТ ИНДИВИДУАЛЬНО
     if user_id in player_game:
         game_id = player_game[user_id]
         game = games.get(game_id)
         
         if game and game.mode == 'bot' and game.chat_enabled:
-            # НАСТОЯЩАЯ НЕЙРОСЕТЬ - ИНДИВИДУАЛЬНЫЙ ОТВЕТ
             response = neural_network.get_response(user_id, text)
-            
             await update.message.reply_text(f"🤖 {response}")
             return
         elif game and game.mode == 'bot' and not game.chat_enabled:
             await update.message.reply_text("❌ Чат выключен. Включите в настройках.")
             return
     
-    # Установка ника
     if user_id in temp_set_nickname:
         nickname = text[:20]
         user_nicknames[user_id] = nickname
@@ -1369,7 +1317,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Возвращайтесь в меню: /start"
         )
     
-    # Создание комнаты - название
     elif user_id in temp_lobby_name:
         total_games = temp_lobby_name[user_id]
         
@@ -1390,7 +1337,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Введите пароль (или 'нет' для открытой комнаты):"
         )
     
-    # Создание комнаты - пароль
     elif user_id in temp_lobby_password:
         data = temp_lobby_password[user_id]
         
@@ -1431,7 +1377,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Ожидайте подключения..."
         )
     
-    # Подключение к комнате - пароль
     elif user_id in temp_lobby_join:
         lobby_id = temp_lobby_join[user_id]
         
@@ -1448,7 +1393,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("❌ Неправильный пароль. Попробуйте снова:")
     
-    # Подключение по команде /join
     elif text.startswith('/join'):
         parts = text.split()
         if len(parts) >= 2:
@@ -1500,15 +1444,20 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     print("=" * 50)
-    print("🎮 КРЕСТИКИ-НОЛИКИ - НАДЕЖНАЯ ВЕРСИЯ")
+    print("🎮 КРЕСТИКИ-НОЛИКИ - СТАБИЛЬНАЯ ВЕРСИЯ")
     print("=" * 50)
-    print("✅ СОХРАНЕНИЕ ДАННЫХ: никнеймы и статистика")
-    print("✅ АТОМАРНАЯ ЗАПИСЬ: без повреждения файлов")
-    print("✅ АВТОСОХРАНЕНИЕ: при выходе и сигналах")
-    print("✅ КНОПКА СБРОСА: в разделе статистики")
-    print("✅ УЛУЧШЕННЫЕ УРОВНИ СЛОЖНОСТИ")
+    print("✅ Health check сервер активен")
+    print("✅ Надежное сохранение данных")
+    print("✅ Кнопка сброса статистики")
+    print("✅ Улучшенные уровни сложности")
     print("=" * 50)
     
+    # Запускаем health-check сервер в отдельном потоке
+    health_thread = threading.Thread(target=run_health_server, daemon=True)
+    health_thread.start()
+    print(f"✅ Health server started on port {os.environ.get('PORT', 10000)}")
+    
+    # Создаем приложение
     app = Application.builder().token(TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
@@ -1516,7 +1465,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_error_handler(error_handler)
     
-    print("🚀 Бот запущен! Отправьте /start в Telegram")
+    print("✅ Бот запущен!")
     app.run_polling()
 
 if __name__ == '__main__':
