@@ -4,6 +4,9 @@ import time
 import uuid
 import json
 import os
+import atexit
+import signal
+import sys
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
@@ -22,45 +25,85 @@ TOKEN = "8725028171:AAEPE1789oMMMxyA8rSM3bPFfA9SSf4WAB8"
 NICKNAMES_FILE = 'nicknames.json'
 STATS_FILE = 'stats.json'
 
-# Загрузка сохраненных данных
+# Загрузка сохраненных данных с защитой от повреждения
 def load_data():
     global user_nicknames, user_stats
     try:
         if os.path.exists(NICKNAMES_FILE):
             with open(NICKNAMES_FILE, 'r', encoding='utf-8') as f:
                 user_nicknames = json.load(f)
-                user_nicknames = {int(k): v for k, v in user_nicknames.items()}
+                # Конвертируем ключи обратно в строки (для совместимости)
+                user_nicknames = {str(k): v for k, v in user_nicknames.items()}
         else:
             user_nicknames = {}
-    except:
+    except Exception as e:
+        logger.error(f"Ошибка загрузки ников: {e}")
+        # Создаем резервную копию поврежденного файла
+        if os.path.exists(NICKNAMES_FILE):
+            os.rename(NICKNAMES_FILE, NICKNAMES_FILE + '.bak')
         user_nicknames = {}
     
     try:
         if os.path.exists(STATS_FILE):
             with open(STATS_FILE, 'r', encoding='utf-8') as f:
                 user_stats = json.load(f)
-                user_stats = {int(k): v for k, v in user_stats.items()}
+                # Конвертируем ключи обратно в строки
+                user_stats = {str(k): v for k, v in user_stats.items()}
         else:
             user_stats = {}
-    except:
+    except Exception as e:
+        logger.error(f"Ошибка загрузки статистики: {e}")
+        if os.path.exists(STATS_FILE):
+            os.rename(STATS_FILE, STATS_FILE + '.bak')
         user_stats = {}
 
-# Сохранение данных
+# Сохранение данных с немедленной записью на диск
 def save_data():
     try:
-        with open(NICKNAMES_FILE, 'w', encoding='utf-8') as f:
-            json.dump({str(k): v for k, v in user_nicknames.items()}, f, ensure_ascii=False, indent=2)
+        # Сначала сохраняем во временный файл
+        temp_nicknames = NICKNAMES_FILE + '.tmp'
+        with open(temp_nicknames, 'w', encoding='utf-8') as f:
+            json.dump(user_nicknames, f, ensure_ascii=False, indent=2)
+        os.replace(temp_nicknames, NICKNAMES_FILE)  # Атомарная замена
     except Exception as e:
         logger.error(f"Ошибка сохранения ников: {e}")
     
     try:
-        with open(STATS_FILE, 'w', encoding='utf-8') as f:
-            json.dump({str(k): v for k, v in user_stats.items()}, f, ensure_ascii=False, indent=2)
+        temp_stats = STATS_FILE + '.tmp'
+        with open(temp_stats, 'w', encoding='utf-8') as f:
+            json.dump(user_stats, f, ensure_ascii=False, indent=2)
+        os.replace(temp_stats, STATS_FILE)
     except Exception as e:
         logger.error(f"Ошибка сохранения статистики: {e}")
 
+# Функция для сброса статистики конкретного игрока
+def reset_user_stats(user_id):
+    user_id_str = str(user_id)
+    if user_id_str in user_stats:
+        user_stats[user_id_str] = {'wins': 0, 'losses': 0, 'draws': 0, 'total': 0}
+        save_data()
+        return True
+    return False
+
+# Сохраняем данные при выходе
+def exit_handler():
+    logger.info("Сохраняем данные перед выходом...")
+    save_data()
+
+atexit.register(exit_handler)
+
+# Обработка сигналов для экстренного завершения
+def signal_handler(sig, frame):
+    logger.info(f"Получен сигнал {sig}, сохраняем данные...")
+    save_data()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
 # Загружаем данные при старте
 load_data()
+save_data()  # Сохраняем сразу после загрузки, чтобы создать файлы
 
 # Хранилища данных
 games = {}
@@ -839,8 +882,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         game.player2_message_id = msg2.message_id
         game.player2_chat_id = msg2.chat_id
     
+    # Статистика с кнопкой сброса
     elif data == 'menu_stats':
-        stats = user_stats.get(user_id, {'wins': 0, 'losses': 0, 'draws': 0, 'total': 0})
+        user_id_str = str(user_id)
+        stats = user_stats.get(user_id_str, {'wins': 0, 'losses': 0, 'draws': 0, 'total': 0})
         win_rate = (stats['wins'] / stats['total'] * 100) if stats['total'] > 0 else 0
         nickname = get_nickname(user_id)
         
@@ -852,6 +897,36 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🤝 Ничьих: {stats['draws']}\n"
             f"📈 Процент побед: {win_rate:.1f}%"
         )
+        
+        # Добавляем кнопку сброса статистики
+        keyboard = [
+            [InlineKeyboardButton("🔄 Сбросить статистику", callback_data='reset_stats')],
+            [InlineKeyboardButton("◀️ Назад", callback_data='menu_main')]
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    
+    # Сброс статистики
+    elif data == 'reset_stats':
+        user_id_str = str(user_id)
+        
+        # Запрашиваем подтверждение
+        keyboard = [
+            [InlineKeyboardButton("✅ Да, сбросить", callback_data='confirm_reset')],
+            [InlineKeyboardButton("❌ Нет, отмена", callback_data='menu_stats')]
+        ]
+        await query.edit_message_text(
+            "⚠️ Вы уверены, что хотите сбросить всю статистику?\n\nЭто действие нельзя отменить.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    
+    # Подтверждение сброса статистики
+    elif data == 'confirm_reset':
+        user_id_str = str(user_id)
+        
+        if reset_user_stats(user_id):
+            text = "✅ Статистика успешно сброшена!"
+        else:
+            text = "❌ Ошибка при сбросе статистики"
         
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data='menu_main')]]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -874,6 +949,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Просто пиши сообщения во время игры\n"
             "• Нейросеть отвечает индивидуально\n"
             "• Помнит контекст разговора\n\n"
+            "📊 **Статистика:**\n"
+            "• Сохраняется даже при сбоях\n"
+            "• Можно сбросить кнопкой\n\n"
             "📝 **Команды:**\n"
             "/start - главное меню\n"
             "/join [ID] - подключиться"
@@ -1422,15 +1500,13 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     print("=" * 50)
-    print("🎮 КРЕСТИКИ-НОЛИКИ - ИДЕАЛЬНАЯ ВЕРСИЯ")
+    print("🎮 КРЕСТИКИ-НОЛИКИ - НАДЕЖНАЯ ВЕРСИЯ")
     print("=" * 50)
+    print("✅ СОХРАНЕНИЕ ДАННЫХ: никнеймы и статистика")
+    print("✅ АТОМАРНАЯ ЗАПИСЬ: без повреждения файлов")
+    print("✅ АВТОСОХРАНЕНИЕ: при выходе и сигналах")
+    print("✅ КНОПКА СБРОСА: в разделе статистики")
     print("✅ УЛУЧШЕННЫЕ УРОВНИ СЛОЖНОСТИ")
-    print("   🟢 Легкий - случайные ходы")
-    print("   🟡 Средний - 70% умных ходов")
-    print("   🔴 Сложный - двойные угрозы")
-    print("   🤖 Нейросеть - минимакс (идеальная игра)")
-    print("✅ ТЕКСТОВЫЙ ЧАТ С НЕЙРОСЕТЬЮ")
-    print("✅ ИНДИВИДУАЛЬНЫЕ ОТВЕТЫ НА КАЖДОЕ СООБЩЕНИЕ")
     print("=" * 50)
     
     app = Application.builder().token(TOKEN).build()
